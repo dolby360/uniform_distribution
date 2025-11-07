@@ -12,3 +12,5 @@ npm-debug.*
 web-build/
 .DS_Store
 expo-go.apk
+**__pycache__**
+**.pytest_cache/**
