@@ -14,3 +14,8 @@ web-build/
 expo-go.apk
 **__pycache__**
 **.pytest_cache/**
+
+# Private GCP configuration (contains real project IDs, emails, etc.)
+architecture_plan/private-gcp-config.md
+backend/service-account-key.json
+backend/.env
