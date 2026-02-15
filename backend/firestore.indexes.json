@@ -1,0 +1,52 @@
+{
+  "indexes": [
+    {
+      "collectionGroup": "clothing_items",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "type",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "wear_count",
+          "order": "DESCENDING"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "clothing_items",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "last_worn",
+          "order": "DESCENDING"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "wear_logs",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "item_id",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "worn_at",
+          "order": "DESCENDING"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "wear_logs",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "worn_at",
+          "order": "DESCENDING"
+        }
+      ]
+    }
+  ]
+}
