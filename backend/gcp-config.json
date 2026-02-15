@@ -1,0 +1,12 @@
+{
+  "projectId": "festive-canto-476606-q2",
+  "projectNumber": "754037840297",
+  "region": "us-central1",
+  "serviceAccount": "uniform-distribution@festive-canto-476606-q2.iam.gserviceaccount.com",
+  "apis": [
+    "firestore.googleapis.com",
+    "storage.googleapis.com",
+    "run.googleapis.com",
+    "cloudbuild.googleapis.com"
+  ]
+}
