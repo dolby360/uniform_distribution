@@ -1,28 +1,31 @@
-# Step 8: Frontend-Backend Integration
+# Step 8: Android App — Backend Integration
 
 ## Goal
 
-Integrate React Native frontend with Cloud Functions backend, implementing camera flow, match confirmation UI, and item display.
+Build a native Android application (Kotlin + Jetpack Compose) that integrates with the Cloud Run backend, implementing camera flow, match confirmation UI, and item display.
 
 ## ASCII Architecture Diagram
 
 ```
 ┌─────────────────────────────────────────────────────────────────┐
-│                React Native Frontend Integration                 │
+│            Android App (Kotlin + Jetpack Compose)                │
 ├─────────────────────────────────────────────────────────────────┤
 │                                                                  │
 │  User Flow:                                                     │
 │                                                                  │
 │  1. HomeScreen                                                  │
 │  ┌──────────────────────────────────────┐                      │
-│  │  [Take Photo Button]                 │                      │
+│  │  [Take Photo FAB]                    │                      │
+│  │  Shirts: LazyRow of item thumbnails  │                      │
+│  │  Pants:  LazyRow of item thumbnails  │                      │
+│  │  [View Statistics Button]            │                      │
 │  └──────────────────────────────────────┘                      │
 │              │                                                   │
-│              ▼ (Camera launched)                                │
+│              ▼ (CameraX launched)                               │
 │  ┌──────────────────────────────────────┐                      │
-│  │  Photo captured (base64)             │                      │
-│  │  → POST /process-outfit               │                      │
-│  │  [Loading indicator]                 │                      │
+│  │  Photo captured → Base64 encoded     │                      │
+│  │  → POST /process-outfit              │                      │
+│  │  [CircularProgressIndicator]         │                      │
 │  └──────────────────────────────────────┘                      │
 │              │                                                   │
 │              ▼                                                   │
@@ -30,7 +33,7 @@ Integrate React Native frontend with Cloud Functions backend, implementing camer
 │  ┌──────────────────────────────────────┐                      │
 │  │  Shirt:                              │                      │
 │  │  ┌────────────┐  ┌────────────┐     │                      │
-│  │  │ Matched!   │  │ New: 👕    │     │                      │
+│  │  │ Matched!   │  │ New Item   │     │                      │
 │  │  │ 92% match  │  │ [Preview]  │     │                      │
 │  │  │ [Confirm]  │  │ [Add New]  │     │                      │
 │  │  └────────────┘  └────────────┘     │                      │
@@ -51,14 +54,24 @@ Integrate React Native frontend with Cloud Functions backend, implementing camer
 │              │                                                   │
 │              ▼                                                   │
 │  3. Back to HomeScreen (updated)                                │
-│  ┌──────────────────────────────────────┐                      │
-│  │  Shirts: 5 items                     │                      │
-│  │  Pants: 3 items                      │                      │
-│  │  [View Statistics]                   │                      │
-│  └──────────────────────────────────────┘                      │
 │                                                                  │
 └─────────────────────────────────────────────────────────────────┘
 ```
+
+## Tech Stack
+
+| Component | Technology |
+|-----------|-----------|
+| Language | Kotlin |
+| UI Framework | Jetpack Compose (Material 3) |
+| Navigation | Jetpack Navigation Compose |
+| Networking | Retrofit + OkHttp + Moshi |
+| Image Loading | Coil (Compose) |
+| Camera | CameraX |
+| Architecture | MVVM + Repository pattern |
+| DI | Hilt |
+| Min SDK | 26 (Android 8.0) |
+| Target SDK | 34 (Android 14) |
 
 ## Data Schemas
 
@@ -74,646 +87,860 @@ Uses endpoints from Steps 6-7:
 ## File Structure
 
 ```
-app/
-  api/
-    cloudFunctions.ts              # API client for Cloud Functions
-    types.ts                       # TypeScript interfaces
-    config.ts                      # API configuration
-  screens/
-    HomeScreen.tsx                 # Updated with item list
-    HomeScreen.logic.ts            # Updated with API calls
-    MatchConfirmationScreen.tsx    # New screen for confirming matches
-    MatchConfirmationScreen.logic.ts
-    MatchConfirmationScreen.styles.ts
-  components/
-    ItemCard.tsx                   # Display clothing item
-    LoadingOverlay.tsx             # Processing indicator
-  utils/
-    imageUtils.ts                  # Base64 conversion
+android/
+  app/
+    src/main/
+      java/com/uniformdist/app/
+        MainActivity.kt
+        UniformDistApp.kt              # Application class (Hilt)
+        di/
+          AppModule.kt                 # Hilt dependency injection
+          NetworkModule.kt             # Retrofit setup
+        data/
+          api/
+            UniformDistApi.kt          # Retrofit API interface
+            ApiConfig.kt               # Base URL configuration
+          model/
+            ProcessOutfitRequest.kt
+            ProcessOutfitResponse.kt
+            ConfirmMatchRequest.kt
+            AddNewItemRequest.kt
+          repository/
+            OutfitRepository.kt        # Repository pattern
+        ui/
+          navigation/
+            NavGraph.kt                # Navigation setup
+            Screen.kt                  # Screen routes
+          theme/
+            Theme.kt                   # Material 3 theme
+            Color.kt
+            Type.kt
+          screens/
+            home/
+              HomeScreen.kt
+              HomeViewModel.kt
+            camera/
+              CameraScreen.kt          # CameraX integration
+            confirmation/
+              MatchConfirmationScreen.kt
+              MatchConfirmationViewModel.kt
+          components/
+            ItemCard.kt                # Clothing item card
+            LoadingOverlay.kt          # Processing indicator
+      res/
+        values/
+          strings.xml
+          themes.xml
+      AndroidManifest.xml              # Camera permission
+    build.gradle.kts                   # App-level dependencies
+  build.gradle.kts                     # Project-level config
+  settings.gradle.kts
 ```
 
 ## Key Code Snippets
 
-### app/api/config.ts
+### android/app/src/main/AndroidManifest.xml (permissions)
 
-```typescript
-export const API_CONFIG = {
-  BASE_URL: 'https://us-central1-uniform-dist-XXXXX.cloudfunctions.net',
-  ENDPOINTS: {
-    PROCESS_OUTFIT: '/process-outfit',
-    CONFIRM_MATCH: '/confirm-match',
-    ADD_NEW_ITEM: '/add-new-item',
-  },
-  TIMEOUT: 60000, // 60 seconds
-};
+```xml
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+    <uses-feature android:name="android.hardware.camera" android:required="true" />
+    <uses-permission android:name="android.permission.CAMERA" />
+    <uses-permission android:name="android.permission.INTERNET" />
+
+    <application
+        android:name=".UniformDistApp"
+        android:allowBackup="true"
+        android:label="@string/app_name"
+        android:theme="@style/Theme.UniformDist">
+        <activity
+            android:name=".MainActivity"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity>
+    </application>
+</manifest>
 ```
 
-### app/api/types.ts
+### android/app/build.gradle.kts (dependencies)
 
-```typescript
-export interface ProcessOutfitRequest {
-  image: string; // base64
+```kotlin
+plugins {
+    id("com.android.application")
+    id("org.jetbrains.kotlin.android")
+    id("com.google.dagger.hilt.android")
+    id("com.google.devtools.ksp")
 }
 
-export interface ItemMatchResult {
-  matched: boolean;
-  item_id?: string;
-  similarity?: number;
-  image_url?: string;
-  cropped_url: string;
-  embedding?: number[];
-}
+android {
+    namespace = "com.uniformdist.app"
+    compileSdk = 34
 
-export interface ProcessOutfitResponse {
-  success: boolean;
-  shirt: ItemMatchResult | null;
-  pants: ItemMatchResult | null;
-  original_photo_url: string;
-  error?: string;
-}
-
-export interface ConfirmMatchRequest {
-  item_id: string;
-  item_type: 'shirt' | 'pants';
-  original_photo_url: string;
-  similarity_score?: number;
-}
-
-export interface AddNewItemRequest {
-  item_type: 'shirt' | 'pants';
-  cropped_image_url: string;
-  embedding: number[];
-  original_photo_url: string;
-  log_wear: boolean;
-}
-```
-
-### app/api/cloudFunctions.ts
-
-```typescript
-import { API_CONFIG } from './config';
-import {
-  ProcessOutfitRequest,
-  ProcessOutfitResponse,
-  ConfirmMatchRequest,
-  AddNewItemRequest,
-} from './types';
-
-export async function processOutfit(imageBase64: string): Promise<ProcessOutfitResponse> {
-  const response = await fetch(`${API_CONFIG.BASE_URL}${API_CONFIG.ENDPOINTS.PROCESS_OUTFIT}`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ image: imageBase64 }),
-    signal: AbortSignal.timeout(API_CONFIG.TIMEOUT),
-  });
-
-  if (!response.ok) {
-    throw new Error(`API error: ${response.status}`);
-  }
-
-  return response.json();
-}
-
-export async function confirmMatch(
-  itemId: string,
-  itemType: 'shirt' | 'pants',
-  originalPhotoUrl: string,
-  similarityScore?: number
-): Promise<{ success: boolean; item_id: string; wear_count: number }> {
-  const response = await fetch(`${API_CONFIG.BASE_URL}${API_CONFIG.ENDPOINTS.CONFIRM_MATCH}`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      item_id: itemId,
-      item_type: itemType,
-      original_photo_url: originalPhotoUrl,
-      similarity_score: similarityScore,
-    }),
-  });
-
-  return response.json();
-}
-
-export async function addNewItem(
-  itemType: 'shirt' | 'pants',
-  croppedImageUrl: string,
-  embedding: number[],
-  originalPhotoUrl: string,
-  logWear: boolean
-): Promise<{ success: boolean; item_id: string }> {
-  const response = await fetch(`${API_CONFIG.BASE_URL}${API_CONFIG.ENDPOINTS.ADD_NEW_ITEM}`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      item_type: itemType,
-      cropped_image_url: croppedImageUrl,
-      embedding: embedding,
-      original_photo_url: originalPhotoUrl,
-      log_wear: logWear,
-    }),
-  });
-
-  return response.json();
-}
-```
-
-### app/utils/imageUtils.ts
-
-```typescript
-import * as FileSystem from 'expo-file-system';
-
-export async function convertImageToBase64(uri: string): Promise<string> {
-  /**
-   * Convert image URI to base64 string
-   */
-  const base64 = await FileSystem.readAsStringAsync(uri, {
-    encoding: FileSystem.EncodingType.Base64,
-  });
-
-  return base64;
-}
-```
-
-### app/screens/HomeScreen.logic.ts (updated)
-
-```typescript
-import { useState } from 'react';
-import { Alert } from 'react-native';
-import * as ImagePicker from 'expo-image-picker';
-import { useNavigation } from '@react-navigation/native';
-import { processOutfit } from '../api/cloudFunctions';
-import { convertImageToBase64 } from '../utils/imageUtils';
-
-export const useHomeScreen = () => {
-  const [shirts, setShirts] = useState<any[]>([]);
-  const [pants, setPants] = useState<any[]>([]);
-  const [isProcessing, setIsProcessing] = useState(false);
-  const navigation = useNavigation();
-
-  const requestCameraPermission = async (): Promise<boolean> => {
-    const { status } = await ImagePicker.requestCameraPermissionsAsync();
-    if (status !== 'granted') {
-      Alert.alert('Permission Denied', 'Camera permission is required to take photos.');
-      return false;
+    defaultConfig {
+        applicationId = "com.uniformdist.app"
+        minSdk = 26
+        targetSdk = 34
+        versionCode = 1
+        versionName = "1.0"
     }
-    return true;
-  };
 
-  const launchCamera = async () => {
-    return await ImagePicker.launchCameraAsync({
-      mediaTypes: ImagePicker.MediaTypeOptions.Images,
-      allowsEditing: true,
-      aspect: [3, 4],
-      quality: 0.8,
-    });
-  };
-
-  const handleCameraPress = async () => {
-    const hasPermission = await requestCameraPermission();
-    if (!hasPermission) return;
-
-    const result = await launchCamera();
-
-    if (result && !result.canceled) {
-      const imageUri = result.assets[0].uri;
-
-      setIsProcessing(true);
-
-      try {
-        // Convert to base64
-        const base64 = await convertImageToBase64(imageUri);
-
-        // Call backend
-        const response = await processOutfit(base64);
-
-        setIsProcessing(false);
-
-        // Navigate to confirmation screen
-        navigation.navigate('MatchConfirmation', {
-          matchResults: response,
-        });
-      } catch (error) {
-        setIsProcessing(false);
-        Alert.alert('Error', 'Failed to process outfit photo. Please try again.');
-        console.error(error);
-      }
+    buildFeatures {
+        compose = true
     }
-  };
 
-  return {
-    shirts,
-    pants,
-    handleCameraPress,
-    isProcessing,
-  };
-};
-```
-
-### app/components/LoadingOverlay.tsx
-
-```typescript
-import React from 'react';
-import { View, ActivityIndicator, Text, StyleSheet } from 'react-native';
-
-interface LoadingOverlayProps {
-  message?: string;
+    composeOptions {
+        kotlinCompilerExtensionVersion = "1.5.8"
+    }
 }
 
-export default function LoadingOverlay({ message = 'Processing...' }: LoadingOverlayProps) {
-  return (
-    <View style={styles.container}>
-      <View style={styles.overlay}>
-        <ActivityIndicator size="large" color="#007AFF" />
-        <Text style={styles.message}>{message}</Text>
-      </View>
-    </View>
-  );
-}
+dependencies {
+    // Compose BOM
+    val composeBom = platform("androidx.compose:compose-bom:2024.02.00")
+    implementation(composeBom)
+    implementation("androidx.compose.material3:material3")
+    implementation("androidx.compose.ui:ui-tooling-preview")
+    implementation("androidx.activity:activity-compose:1.8.2")
+    implementation("androidx.navigation:navigation-compose:2.7.6")
+    implementation("androidx.lifecycle:lifecycle-viewmodel-compose:2.7.0")
 
-const styles = StyleSheet.create({
-  container: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
-    justifyContent: 'center',
-    alignItems: 'center',
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
-    zIndex: 999,
-  },
-  overlay: {
-    backgroundColor: 'white',
-    padding: 30,
-    borderRadius: 10,
-    alignItems: 'center',
-  },
-  message: {
-    marginTop: 15,
-    fontSize: 16,
-    color: '#333',
-  },
-});
-```
+    // Networking
+    implementation("com.squareup.retrofit2:retrofit:2.9.0")
+    implementation("com.squareup.retrofit2:converter-moshi:2.9.0")
+    implementation("com.squareup.moshi:moshi-kotlin:1.15.0")
+    ksp("com.squareup.moshi:moshi-kotlin-codegen:1.15.0")
+    implementation("com.squareup.okhttp3:okhttp:4.12.0")
+    implementation("com.squareup.okhttp3:logging-interceptor:4.12.0")
 
-### app/screens/MatchConfirmationScreen.tsx
+    // Image loading
+    implementation("io.coil-kt:coil-compose:2.5.0")
 
-```typescript
-import React from 'react';
-import { View, Text, Image, TouchableOpacity, ScrollView } from 'react-native';
-import { useMatchConfirmation } from './MatchConfirmationScreen.logic';
-import { styles } from './MatchConfirmationScreen.styles';
+    // CameraX
+    val cameraxVersion = "1.3.1"
+    implementation("androidx.camera:camera-core:$cameraxVersion")
+    implementation("androidx.camera:camera-camera2:$cameraxVersion")
+    implementation("androidx.camera:camera-lifecycle:$cameraxVersion")
+    implementation("androidx.camera:camera-view:$cameraxVersion")
 
-export default function MatchConfirmationScreen({ route }) {
-  const { matchResults } = route.params;
-  const { handleConfirm, handleAddNew, isLoading } = useMatchConfirmation();
-
-  return (
-    <ScrollView style={styles.container}>
-      <Text style={styles.title}>Review Your Outfit</Text>
-
-      {/* Shirt Section */}
-      {matchResults.shirt && (
-        <View style={styles.itemSection}>
-          <Text style={styles.itemTitle}>Shirt</Text>
-
-          {matchResults.shirt.matched ? (
-            <View style={styles.matchCard}>
-              <Image
-                source={{ uri: matchResults.shirt.image_url }}
-                style={styles.itemImage}
-              />
-              <Text style={styles.matchText}>
-                Match: {Math.round((matchResults.shirt.similarity || 0) * 100)}%
-              </Text>
-              <TouchableOpacity
-                style={styles.confirmButton}
-                onPress={() => handleConfirm('shirt', matchResults.shirt, matchResults.original_photo_url)}
-                disabled={isLoading}
-              >
-                <Text style={styles.buttonText}>Confirm Match</Text>
-              </TouchableOpacity>
-            </View>
-          ) : (
-            <View style={styles.newCard}>
-              <Image
-                source={{ uri: matchResults.shirt.cropped_url }}
-                style={styles.itemImage}
-              />
-              <Text style={styles.newText}>New Item Detected</Text>
-              <TouchableOpacity
-                style={styles.addButton}
-                onPress={() => handleAddNew('shirt', matchResults.shirt, matchResults.original_photo_url)}
-                disabled={isLoading}
-              >
-                <Text style={styles.buttonText}>Add to Wardrobe</Text>
-              </TouchableOpacity>
-            </View>
-          )}
-        </View>
-      )}
-
-      {/* Pants Section */}
-      {matchResults.pants && (
-        <View style={styles.itemSection}>
-          <Text style={styles.itemTitle}>Pants</Text>
-
-          {matchResults.pants.matched ? (
-            <View style={styles.matchCard}>
-              <Image
-                source={{ uri: matchResults.pants.image_url }}
-                style={styles.itemImage}
-              />
-              <Text style={styles.matchText}>
-                Match: {Math.round((matchResults.pants.similarity || 0) * 100)}%
-              </Text>
-              <TouchableOpacity
-                style={styles.confirmButton}
-                onPress={() => handleConfirm('pants', matchResults.pants, matchResults.original_photo_url)}
-                disabled={isLoading}
-              >
-                <Text style={styles.buttonText}>Confirm Match</Text>
-              </TouchableOpacity>
-            </View>
-          ) : (
-            <View style={styles.newCard}>
-              <Image
-                source={{ uri: matchResults.pants.cropped_url }}
-                style={styles.itemImage}
-              />
-              <Text style={styles.newText}>New Item Detected</Text>
-              <TouchableOpacity
-                style={styles.addButton}
-                onPress={() => handleAddNew('pants', matchResults.pants, matchResults.original_photo_url)}
-                disabled={isLoading}
-              >
-                <Text style={styles.buttonText}>Add to Wardrobe</Text>
-              </TouchableOpacity>
-            </View>
-          )}
-        </View>
-      )}
-    </ScrollView>
-  );
+    // Hilt
+    implementation("com.google.dagger:hilt-android:2.50")
+    ksp("com.google.dagger:hilt-compiler:2.50")
+    implementation("androidx.hilt:hilt-navigation-compose:1.1.0")
 }
 ```
 
-### app/screens/MatchConfirmationScreen.logic.ts
+### data/api/ApiConfig.kt
 
-```typescript
-import { useState } from 'react';
-import { Alert } from 'react-native';
-import { useNavigation } from '@react-navigation/native';
-import { confirmMatch, addNewItem } from '../api/cloudFunctions';
-import { ItemMatchResult } from '../api/types';
+```kotlin
+package com.uniformdist.app.data.api
 
-export const useMatchConfirmation = () => {
-  const [isLoading, setIsLoading] = useState(false);
-  const navigation = useNavigation();
+object ApiConfig {
+    // Replace with your Cloud Run service URL
+    const val BASE_URL = "https://your-cloud-run-service-url.run.app"
+    const val TIMEOUT_SECONDS = 60L
+}
+```
 
-  const handleConfirm = async (
-    itemType: 'shirt' | 'pants',
+### data/api/UniformDistApi.kt
+
+```kotlin
+package com.uniformdist.app.data.api
+
+import com.uniformdist.app.data.model.*
+import retrofit2.http.Body
+import retrofit2.http.POST
+
+interface UniformDistApi {
+
+    @POST("/process-outfit")
+    suspend fun processOutfit(
+        @Body request: ProcessOutfitRequest
+    ): ProcessOutfitResponse
+
+    @POST("/confirm-match")
+    suspend fun confirmMatch(
+        @Body request: ConfirmMatchRequest
+    ): ConfirmMatchResponse
+
+    @POST("/add-new-item")
+    suspend fun addNewItem(
+        @Body request: AddNewItemRequest
+    ): AddNewItemResponse
+}
+```
+
+### data/model/ProcessOutfitRequest.kt
+
+```kotlin
+package com.uniformdist.app.data.model
+
+import com.squareup.moshi.JsonClass
+
+@JsonClass(generateAdapter = true)
+data class ProcessOutfitRequest(
+    val image: String  // base64-encoded JPEG
+)
+
+@JsonClass(generateAdapter = true)
+data class ItemMatchResult(
+    val matched: Boolean,
+    val item_id: String? = null,
+    val similarity: Double? = null,
+    val image_url: String? = null,
+    val cropped_url: String? = null,
+    val embedding: List<Double>? = null
+)
+
+@JsonClass(generateAdapter = true)
+data class ProcessOutfitResponse(
+    val success: Boolean,
+    val shirt: ItemMatchResult? = null,
+    val pants: ItemMatchResult? = null,
+    val original_photo_url: String? = null,
+    val error: String? = null
+)
+
+@JsonClass(generateAdapter = true)
+data class ConfirmMatchRequest(
+    val item_id: String,
+    val item_type: String,
+    val original_photo_url: String,
+    val similarity_score: Double? = null
+)
+
+@JsonClass(generateAdapter = true)
+data class ConfirmMatchResponse(
+    val success: Boolean,
+    val item_id: String,
+    val wear_count: Int,
+    val last_worn: String? = null
+)
+
+@JsonClass(generateAdapter = true)
+data class AddNewItemRequest(
+    val item_type: String,
+    val cropped_image_url: String,
+    val embedding: List<Double>,
+    val original_photo_url: String,
+    val log_wear: Boolean
+)
+
+@JsonClass(generateAdapter = true)
+data class AddNewItemResponse(
+    val success: Boolean,
+    val item_id: String
+)
+```
+
+### di/NetworkModule.kt
+
+```kotlin
+package com.uniformdist.app.di
+
+import com.squareup.moshi.Moshi
+import com.squareup.moshi.kotlin.reflect.KotlinJsonAdapterFactory
+import com.uniformdist.app.data.api.ApiConfig
+import com.uniformdist.app.data.api.UniformDistApi
+import dagger.Module
+import dagger.Provides
+import dagger.hilt.InstallIn
+import dagger.hilt.components.SingletonComponent
+import okhttp3.OkHttpClient
+import okhttp3.logging.HttpLoggingInterceptor
+import retrofit2.Retrofit
+import retrofit2.converter.moshi.MoshiConverterFactory
+import java.util.concurrent.TimeUnit
+import javax.inject.Singleton
+
+@Module
+@InstallIn(SingletonComponent::class)
+object NetworkModule {
+
+    @Provides
+    @Singleton
+    fun provideMoshi(): Moshi = Moshi.Builder()
+        .addLast(KotlinJsonAdapterFactory())
+        .build()
+
+    @Provides
+    @Singleton
+    fun provideOkHttpClient(): OkHttpClient = OkHttpClient.Builder()
+        .connectTimeout(ApiConfig.TIMEOUT_SECONDS, TimeUnit.SECONDS)
+        .readTimeout(ApiConfig.TIMEOUT_SECONDS, TimeUnit.SECONDS)
+        .writeTimeout(ApiConfig.TIMEOUT_SECONDS, TimeUnit.SECONDS)
+        .addInterceptor(HttpLoggingInterceptor().apply {
+            level = HttpLoggingInterceptor.Level.BODY
+        })
+        .build()
+
+    @Provides
+    @Singleton
+    fun provideRetrofit(okHttpClient: OkHttpClient, moshi: Moshi): Retrofit =
+        Retrofit.Builder()
+            .baseUrl(ApiConfig.BASE_URL)
+            .client(okHttpClient)
+            .addConverterFactory(MoshiConverterFactory.create(moshi))
+            .build()
+
+    @Provides
+    @Singleton
+    fun provideApi(retrofit: Retrofit): UniformDistApi =
+        retrofit.create(UniformDistApi::class.java)
+}
+```
+
+### data/repository/OutfitRepository.kt
+
+```kotlin
+package com.uniformdist.app.data.repository
+
+import com.uniformdist.app.data.api.UniformDistApi
+import com.uniformdist.app.data.model.*
+import javax.inject.Inject
+import javax.inject.Singleton
+
+@Singleton
+class OutfitRepository @Inject constructor(
+    private val api: UniformDistApi
+) {
+    suspend fun processOutfit(imageBase64: String): ProcessOutfitResponse {
+        return api.processOutfit(ProcessOutfitRequest(image = imageBase64))
+    }
+
+    suspend fun confirmMatch(
+        itemId: String,
+        itemType: String,
+        originalPhotoUrl: String,
+        similarityScore: Double? = null
+    ): ConfirmMatchResponse {
+        return api.confirmMatch(
+            ConfirmMatchRequest(
+                item_id = itemId,
+                item_type = itemType,
+                original_photo_url = originalPhotoUrl,
+                similarity_score = similarityScore
+            )
+        )
+    }
+
+    suspend fun addNewItem(
+        itemType: String,
+        croppedImageUrl: String,
+        embedding: List<Double>,
+        originalPhotoUrl: String,
+        logWear: Boolean
+    ): AddNewItemResponse {
+        return api.addNewItem(
+            AddNewItemRequest(
+                item_type = itemType,
+                cropped_image_url = croppedImageUrl,
+                embedding = embedding,
+                original_photo_url = originalPhotoUrl,
+                log_wear = logWear
+            )
+        )
+    }
+}
+```
+
+### ui/navigation/Screen.kt
+
+```kotlin
+package com.uniformdist.app.ui.navigation
+
+sealed class Screen(val route: String) {
+    data object Home : Screen("home")
+    data object Camera : Screen("camera")
+    data object MatchConfirmation : Screen("match_confirmation")
+    data object Statistics : Screen("statistics")
+}
+```
+
+### ui/navigation/NavGraph.kt
+
+```kotlin
+package com.uniformdist.app.ui.navigation
+
+import androidx.compose.runtime.Composable
+import androidx.navigation.NavHostController
+import androidx.navigation.compose.NavHost
+import androidx.navigation.compose.composable
+import com.uniformdist.app.ui.screens.camera.CameraScreen
+import com.uniformdist.app.ui.screens.confirmation.MatchConfirmationScreen
+import com.uniformdist.app.ui.screens.home.HomeScreen
+
+@Composable
+fun NavGraph(navController: NavHostController) {
+    NavHost(navController = navController, startDestination = Screen.Home.route) {
+        composable(Screen.Home.route) {
+            HomeScreen(
+                onTakePhoto = { navController.navigate(Screen.Camera.route) },
+                onViewStats = { navController.navigate(Screen.Statistics.route) }
+            )
+        }
+        composable(Screen.Camera.route) {
+            CameraScreen(
+                onPhotoCaptured = { response ->
+                    // Pass result via savedStateHandle
+                    navController.previousBackStackEntry
+                        ?.savedStateHandle
+                        ?.set("match_result", response)
+                    navController.navigate(Screen.MatchConfirmation.route)
+                },
+                onBack = { navController.popBackStack() }
+            )
+        }
+        composable(Screen.MatchConfirmation.route) {
+            MatchConfirmationScreen(
+                onDone = {
+                    navController.popBackStack(Screen.Home.route, inclusive = false)
+                }
+            )
+        }
+    }
+}
+```
+
+### ui/screens/home/HomeScreen.kt
+
+```kotlin
+package com.uniformdist.app.ui.screens.home
+
+import androidx.compose.foundation.layout.*
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.CameraAlt
+import androidx.compose.material3.*
+import androidx.compose.runtime.Composable
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.unit.dp
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun HomeScreen(
+    onTakePhoto: () -> Unit,
+    onViewStats: () -> Unit
+) {
+    Scaffold(
+        topBar = {
+            TopAppBar(title = { Text("Uniform Distribution") })
+        },
+        floatingActionButton = {
+            FloatingActionButton(onClick = onTakePhoto) {
+                Icon(Icons.Default.CameraAlt, contentDescription = "Take Photo")
+            }
+        }
+    ) { padding ->
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(padding)
+                .padding(16.dp),
+            horizontalAlignment = Alignment.CenterHorizontally
+        ) {
+            Text(
+                text = "Take a photo of your outfit to log what you're wearing today.",
+                style = MaterialTheme.typography.bodyLarge,
+                modifier = Modifier.padding(bottom = 24.dp)
+            )
+
+            OutlinedButton(onClick = onViewStats) {
+                Text("View Statistics")
+            }
+        }
+    }
+}
+```
+
+### ui/screens/camera/CameraScreen.kt
+
+```kotlin
+package com.uniformdist.app.ui.screens.camera
+
+import android.Manifest
+import android.util.Base64
+import androidx.camera.core.CameraSelector
+import androidx.camera.core.ImageCapture
+import androidx.camera.core.ImageCaptureException
+import androidx.camera.core.Preview
+import androidx.camera.lifecycle.ProcessCameraProvider
+import androidx.camera.view.PreviewView
+import androidx.compose.foundation.layout.*
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.CameraAlt
+import androidx.compose.material3.*
+import androidx.compose.runtime.*
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.viewinterop.AndroidView
+import androidx.core.content.ContextCompat
+import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.lifecycle.compose.LocalLifecycleOwner
+import com.google.accompanist.permissions.ExperimentalPermissionsApi
+import com.google.accompanist.permissions.isGranted
+import com.google.accompanist.permissions.rememberPermissionState
+import com.uniformdist.app.data.model.ProcessOutfitResponse
+import java.io.File
+
+@OptIn(ExperimentalPermissionsApi::class)
+@Composable
+fun CameraScreen(
+    onPhotoCaptured: (ProcessOutfitResponse) -> Unit,
+    onBack: () -> Unit,
+    viewModel: CameraViewModel = hiltViewModel()
+) {
+    val cameraPermission = rememberPermissionState(Manifest.permission.CAMERA)
+    val uiState by viewModel.uiState.collectAsState()
+    val context = LocalContext.current
+
+    LaunchedEffect(uiState.result) {
+        uiState.result?.let { onPhotoCaptured(it) }
+    }
+
+    if (!cameraPermission.status.isGranted) {
+        // Permission request UI
+        Column(
+            modifier = Modifier.fillMaxSize(),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.Center
+        ) {
+            Text("Camera permission is required")
+            Spacer(modifier = Modifier.height(16.dp))
+            Button(onClick = { cameraPermission.launchPermissionRequest() }) {
+                Text("Grant Permission")
+            }
+        }
+    } else {
+        Box(modifier = Modifier.fillMaxSize()) {
+            // CameraX Preview
+            val lifecycleOwner = LocalLifecycleOwner.current
+            var imageCapture by remember { mutableStateOf<ImageCapture?>(null) }
+
+            AndroidView(
+                factory = { ctx ->
+                    PreviewView(ctx).also { previewView ->
+                        val cameraProviderFuture = ProcessCameraProvider.getInstance(ctx)
+                        cameraProviderFuture.addListener({
+                            val cameraProvider = cameraProviderFuture.get()
+                            val preview = Preview.Builder().build().also {
+                                it.surfaceProvider = previewView.surfaceProvider
+                            }
+                            imageCapture = ImageCapture.Builder()
+                                .setCaptureMode(ImageCapture.CAPTURE_MODE_MINIMIZE_LATENCY)
+                                .build()
+
+                            cameraProvider.unbindAll()
+                            cameraProvider.bindToLifecycle(
+                                lifecycleOwner,
+                                CameraSelector.DEFAULT_BACK_CAMERA,
+                                preview,
+                                imageCapture
+                            )
+                        }, ContextCompat.getMainExecutor(ctx))
+                    }
+                },
+                modifier = Modifier.fillMaxSize()
+            )
+
+            // Capture button
+            FloatingActionButton(
+                onClick = {
+                    val capture = imageCapture ?: return@FloatingActionButton
+                    val photoFile = File(context.cacheDir, "outfit_${System.currentTimeMillis()}.jpg")
+                    val outputOptions = ImageCapture.OutputFileOptions.Builder(photoFile).build()
+
+                    capture.takePicture(
+                        outputOptions,
+                        ContextCompat.getMainExecutor(context),
+                        object : ImageCapture.OnImageSavedCallback {
+                            override fun onImageSaved(output: ImageCapture.OutputFileResults) {
+                                val bytes = photoFile.readBytes()
+                                val base64 = Base64.encodeToString(bytes, Base64.NO_WRAP)
+                                viewModel.processOutfit(base64)
+                            }
+                            override fun onError(exc: ImageCaptureException) {
+                                viewModel.setError("Failed to capture photo: ${exc.message}")
+                            }
+                        }
+                    )
+                },
+                modifier = Modifier
+                    .align(Alignment.BottomCenter)
+                    .padding(32.dp)
+            ) {
+                Icon(Icons.Default.CameraAlt, contentDescription = "Capture")
+            }
+
+            // Loading overlay
+            if (uiState.isProcessing) {
+                Surface(
+                    modifier = Modifier.fillMaxSize(),
+                    color = MaterialTheme.colorScheme.scrim.copy(alpha = 0.5f)
+                ) {
+                    Box(contentAlignment = Alignment.Center) {
+                        Card {
+                            Column(
+                                modifier = Modifier.padding(32.dp),
+                                horizontalAlignment = Alignment.CenterHorizontally
+                            ) {
+                                CircularProgressIndicator()
+                                Spacer(modifier = Modifier.height(16.dp))
+                                Text("Analyzing outfit...")
+                            }
+                        }
+                    }
+                }
+            }
+
+            // Error snackbar
+            uiState.error?.let { error ->
+                Snackbar(
+                    modifier = Modifier
+                        .align(Alignment.BottomCenter)
+                        .padding(16.dp)
+                ) {
+                    Text(error)
+                }
+            }
+        }
+    }
+}
+```
+
+### ui/screens/confirmation/MatchConfirmationScreen.kt
+
+```kotlin
+package com.uniformdist.app.ui.screens.confirmation
+
+import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.material3.*
+import androidx.compose.runtime.*
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.unit.dp
+import androidx.hilt.navigation.compose.hiltViewModel
+import coil.compose.AsyncImage
+import com.uniformdist.app.data.model.ItemMatchResult
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun MatchConfirmationScreen(
+    onDone: () -> Unit,
+    viewModel: MatchConfirmationViewModel = hiltViewModel()
+) {
+    val uiState by viewModel.uiState.collectAsState()
+
+    LaunchedEffect(uiState.isDone) {
+        if (uiState.isDone) onDone()
+    }
+
+    Scaffold(
+        topBar = { TopAppBar(title = { Text("Confirm Matches") }) }
+    ) { padding ->
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(padding)
+                .verticalScroll(rememberScrollState())
+                .padding(16.dp)
+        ) {
+            // Shirt section
+            uiState.matchResults?.shirt?.let { shirt ->
+                ItemMatchSection(
+                    itemType = "Shirt",
+                    item = shirt,
+                    isLoading = uiState.isLoading,
+                    onConfirm = { viewModel.confirmMatch("shirt", shirt) },
+                    onAddNew = { viewModel.addNewItem("shirt", shirt) }
+                )
+                Spacer(modifier = Modifier.height(16.dp))
+            }
+
+            // Pants section
+            uiState.matchResults?.pants?.let { pants ->
+                ItemMatchSection(
+                    itemType = "Pants",
+                    item = pants,
+                    isLoading = uiState.isLoading,
+                    onConfirm = { viewModel.confirmMatch("pants", pants) },
+                    onAddNew = { viewModel.addNewItem("pants", pants) }
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun ItemMatchSection(
+    itemType: String,
     item: ItemMatchResult,
-    originalPhotoUrl: string
-  ) => {
-    setIsLoading(true);
+    isLoading: Boolean,
+    onConfirm: () -> Unit,
+    onAddNew: () -> Unit
+) {
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
+    ) {
+        Column(
+            modifier = Modifier.padding(16.dp),
+            horizontalAlignment = Alignment.CenterHorizontally
+        ) {
+            Text(
+                text = itemType,
+                style = MaterialTheme.typography.titleLarge
+            )
 
-    try {
-      await confirmMatch(
-        item.item_id!,
-        itemType,
-        originalPhotoUrl,
-        item.similarity
-      );
+            Spacer(modifier = Modifier.height(12.dp))
 
-      Alert.alert('Success', 'Wear logged successfully!');
-      navigation.navigate('Home');
-    } catch (error) {
-      Alert.alert('Error', 'Failed to confirm match');
-      console.error(error);
-    } finally {
-      setIsLoading(false);
+            // Show the image
+            val imageUrl = if (item.matched) item.image_url else item.cropped_url
+            imageUrl?.let { url ->
+                AsyncImage(
+                    model = url,
+                    contentDescription = "$itemType image",
+                    modifier = Modifier
+                        .size(200.dp)
+                        .clip(MaterialTheme.shapes.medium),
+                    contentScale = ContentScale.Crop
+                )
+            }
+
+            Spacer(modifier = Modifier.height(12.dp))
+
+            if (item.matched) {
+                Text(
+                    text = "Match: ${((item.similarity ?: 0.0) * 100).toInt()}%",
+                    style = MaterialTheme.typography.titleMedium,
+                    color = MaterialTheme.colorScheme.primary
+                )
+                Spacer(modifier = Modifier.height(12.dp))
+                Button(
+                    onClick = onConfirm,
+                    enabled = !isLoading
+                ) {
+                    Text("Confirm Match")
+                }
+            } else {
+                Text(
+                    text = "New Item Detected",
+                    style = MaterialTheme.typography.titleMedium,
+                    color = MaterialTheme.colorScheme.tertiary
+                )
+                Spacer(modifier = Modifier.height(12.dp))
+                Button(
+                    onClick = onAddNew,
+                    enabled = !isLoading
+                ) {
+                    Text("Add to Wardrobe")
+                }
+            }
+        }
     }
-  };
-
-  const handleAddNew = async (
-    itemType: 'shirt' | 'pants',
-    item: ItemMatchResult,
-    originalPhotoUrl: string
-  ) => {
-    setIsLoading(true);
-
-    try {
-      // Extract gs:// URL from signed URL
-      const gsUrl = item.cropped_url.includes('gs://')
-        ? item.cropped_url
-        : `gs://uniform-dist-XXXXX.appspot.com/cropped-items/${itemType}s/...`;
-
-      await addNewItem(
-        itemType,
-        gsUrl,
-        item.embedding!,
-        originalPhotoUrl,
-        true // Log wear event
-      );
-
-      Alert.alert('Success', 'New item added to your wardrobe!');
-      navigation.navigate('Home');
-    } catch (error) {
-      Alert.alert('Error', 'Failed to add new item');
-      console.error(error);
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  return {
-    handleConfirm,
-    handleAddNew,
-    isLoading,
-  };
-};
-```
-
-### app/screens/MatchConfirmationScreen.styles.ts
-
-```typescript
-import { StyleSheet } from 'react-native';
-
-export const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#f5f5f5',
-    padding: 16,
-  },
-  title: {
-    fontSize: 24,
-    fontWeight: 'bold',
-    marginBottom: 20,
-    textAlign: 'center',
-  },
-  itemSection: {
-    marginBottom: 24,
-  },
-  itemTitle: {
-    fontSize: 20,
-    fontWeight: '600',
-    marginBottom: 12,
-  },
-  matchCard: {
-    backgroundColor: 'white',
-    borderRadius: 12,
-    padding: 16,
-    alignItems: 'center',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
-  },
-  newCard: {
-    backgroundColor: 'white',
-    borderRadius: 12,
-    padding: 16,
-    alignItems: 'center',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
-  },
-  itemImage: {
-    width: 200,
-    height: 200,
-    borderRadius: 8,
-    marginBottom: 12,
-  },
-  matchText: {
-    fontSize: 18,
-    fontWeight: '600',
-    color: '#4CAF50',
-    marginBottom: 12,
-  },
-  newText: {
-    fontSize: 18,
-    fontWeight: '600',
-    color: '#FF9800',
-    marginBottom: 12,
-  },
-  confirmButton: {
-    backgroundColor: '#4CAF50',
-    paddingHorizontal: 32,
-    paddingVertical: 12,
-    borderRadius: 8,
-  },
-  addButton: {
-    backgroundColor: '#2196F3',
-    paddingHorizontal: 32,
-    paddingVertical: 12,
-    borderRadius: 8,
-  },
-  buttonText: {
-    color: 'white',
-    fontSize: 16,
-    fontWeight: '600',
-  },
-});
-```
-
-### app/App.tsx (update navigation)
-
-```typescript
-import React from 'react';
-import { NavigationContainer } from '@react-navigation/native';
-import { createStackNavigator } from '@react-navigation/stack';
-import HomeScreen from './screens/HomeScreen';
-import MatchConfirmationScreen from './screens/MatchConfirmationScreen';
-
-const Stack = createStackNavigator();
-
-export default function App() {
-  return (
-    <NavigationContainer>
-      <Stack.Navigator initialRouteName="Home">
-        <Stack.Screen
-          name="Home"
-          component={HomeScreen}
-          options={{ title: 'Uniform Distribution' }}
-        />
-        <Stack.Screen
-          name="MatchConfirmation"
-          component={MatchConfirmationScreen}
-          options={{ title: 'Confirm Matches' }}
-        />
-      </Stack.Navigator>
-    </NavigationContainer>
-  );
 }
 ```
 
-### app/package.json (add dependencies)
+### MainActivity.kt
 
-```json
-{
-  "dependencies": {
-    "expo-file-system": "~17.0.1",
-    "existing dependencies...": "..."
-  }
+```kotlin
+package com.uniformdist.app
+
+import android.os.Bundle
+import androidx.activity.ComponentActivity
+import androidx.activity.compose.setContent
+import androidx.navigation.compose.rememberNavController
+import com.uniformdist.app.ui.navigation.NavGraph
+import com.uniformdist.app.ui.theme.UniformDistTheme
+import dagger.hilt.android.AndroidEntryPoint
+
+@AndroidEntryPoint
+class MainActivity : ComponentActivity() {
+    override fun onCreate(savedInstanceState: Bundle?) {
+        super.onCreate(savedInstanceState)
+        setContent {
+            UniformDistTheme {
+                val navController = rememberNavController()
+                NavGraph(navController = navController)
+            }
+        }
+    }
 }
+```
+
+### UniformDistApp.kt
+
+```kotlin
+package com.uniformdist.app
+
+import android.app.Application
+import dagger.hilt.android.HiltAndroidApp
+
+@HiltAndroidApp
+class UniformDistApp : Application()
 ```
 
 ## Acceptance Criteria
 
-- [ ] Camera flow captures photo and sends to backend
+- [ ] Android project builds and runs on emulator/device
+- [ ] CameraX captures photos successfully
+- [ ] Photos are Base64 encoded and sent to backend
 - [ ] Loading indicator shows during API call
 - [ ] Match confirmation screen displays results correctly
-- [ ] Matched items show similarity percentage
+- [ ] Matched items show similarity percentage and image
 - [ ] New items show cropped preview
-- [ ] Confirming match updates backend and returns to home
+- [ ] Confirming match calls backend and returns to home
 - [ ] Adding new item creates entry and returns to home
-- [ ] Error handling for network failures, timeout
-- [ ] Images load from signed URLs
+- [ ] Error handling for network failures, timeout, camera errors
+- [ ] Images load from signed URLs via Coil
 - [ ] Navigation flow works smoothly
-- [ ] UI is responsive and user-friendly
+- [ ] Camera permission handled gracefully
+- [ ] Material 3 theming applied consistently
+- [ ] Works on Android 8.0+ (API 26+)
 
 ## Setup Instructions
 
-1. **Install Dependencies**:
+1. **Create Android Project**:
    ```bash
-   cd app
-   npm install expo-file-system
+   # Use Android Studio to create a new project:
+   # Template: Empty Compose Activity
+   # Package: com.uniformdist.app
+   # Min SDK: API 26
    ```
 
-2. **Update API Configuration**:
-   Edit `app/api/config.ts` with your Cloud Function URLs
+2. **Add Dependencies**:
+   Copy the dependencies from `build.gradle.kts` above
 
-3. **Run App**:
+3. **Configure API URL**:
+   Edit `ApiConfig.kt` with your Cloud Run service URL
+
+4. **Build and Run**:
    ```bash
-   npx expo start
+   cd android
+   ./gradlew assembleDebug
+   # Or use Android Studio Run button
    ```
 
 ## Verification
 
-### E2E Test Flow
-
-1. Launch app
-2. Press "Take Photo" button
-3. Capture outfit photo
-4. Wait for processing (~10-20 seconds)
-5. Review results on MatchConfirmationScreen
-6. Confirm or add items
-7. Verify navigation back to HomeScreen
-8. Check Firestore for logged data
-
 ### Test Checklist
 
-- [ ] Camera permission requested
-- [ ] Photo captured successfully
+- [ ] App installs on Android 8.0+ emulator or device
+- [ ] Camera permission dialog appears on first launch
+- [ ] Camera preview renders correctly
+- [ ] Photo capture works (shutter button)
 - [ ] API call completes without errors
 - [ ] Loading overlay displays during processing
-- [ ] Match results displayed correctly
-- [ ] Images render from signed URLs
+- [ ] Match results displayed with images
 - [ ] Buttons respond to taps
-- [ ] Success alert shown after confirmation
-- [ ] Navigation works correctly
-- [ ] No memory leaks or crashes
+- [ ] Success feedback shown after confirmation
+- [ ] Navigation back to home works
+- [ ] App handles orientation changes
+- [ ] App handles process death/recreation
+- [ ] No memory leaks (check with LeakCanary)

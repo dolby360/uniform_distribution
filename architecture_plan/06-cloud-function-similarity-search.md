@@ -391,7 +391,7 @@ gcloud functions describe process-outfit --region=us-central1 --gen2 --format="v
 - [ ] Signed URLs are valid and images accessible
 - [ ] Error handling for invalid images, API failures
 - [ ] Response time < 30 seconds for typical outfit photo
-- [ ] CORS headers allow frontend access
+- [ ] CORS headers allow Android app access
 - [ ] Memory usage stays within 1GB limit
 - [ ] Concurrent requests handled properly
 

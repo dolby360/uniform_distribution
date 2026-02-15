@@ -2,7 +2,7 @@
 
 ## Goal
 
-Implement statistics screen showing wear analytics: most/least worn items, items not worn in 30+ days, wear frequency, and total unique items.
+Implement statistics screen showing wear analytics: most/least worn items, items not worn in 30+ days, wear frequency, and total unique items. Backend endpoint + Android UI (Kotlin + Jetpack Compose).
 
 ## ASCII Architecture Diagram
 
@@ -47,23 +47,23 @@ Implement statistics screen showing wear analytics: most/least worn items, items
 │  └──────────────────────────────────────────┘                  │
 │              │                                                   │
 │              ▼                                                   │
-│  StatisticsScreen (React Native)                                │
+│  Android StatisticsScreen (Jetpack Compose)                     │
 │  ┌──────────────────────────────────────────┐                  │
-│  │  📊 Your Wardrobe Stats                  │                  │
+│  │  Your Wardrobe Stats                     │                  │
 │  │                                          │                  │
 │  │  Total Items: 15 (8 shirts, 7 pants)    │                  │
 │  │                                          │                  │
-│  │  🔥 Most Worn:                            │                  │
+│  │  Most Worn:                              │                  │
 │  │  [Item cards with wear counts]           │                  │
 │  │                                          │                  │
-│  │  😴 Least Worn:                           │                  │
+│  │  Least Worn:                             │                  │
 │  │  [Item cards]                            │                  │
 │  │                                          │                  │
-│  │  ⏰ Not Worn (30+ days):                  │                  │
+│  │  Not Worn (30+ days):                    │                  │
 │  │  [Item cards with "Last worn: 45d ago"]  │                  │
 │  │                                          │                  │
-│  │  📈 Wear Frequency Chart                  │                  │
-│  │  [Simple bar chart - last 30 days]       │                  │
+│  │  Wear Frequency Chart                    │                  │
+│  │  [Canvas-drawn bar chart - last 30 days] │                  │
 │  └──────────────────────────────────────────┘                  │
 │                                                                  │
 └─────────────────────────────────────────────────────────────────┘
@@ -73,34 +73,37 @@ Implement statistics screen showing wear analytics: most/least worn items, items
 
 ### ItemStats
 
-```typescript
-interface ItemStats {
-  id: string;
-  type: 'shirt' | 'pants';
-  image_url: string;
-  wear_count: number;
-  last_worn: string | null;  // ISO timestamp
-  days_since_worn: number | null;
-}
+```kotlin
+@JsonClass(generateAdapter = true)
+data class ItemStats(
+    val id: String,
+    val type: String,        // "shirt" | "pants"
+    val image_url: String,
+    val wear_count: Int,
+    val last_worn: String?,  // ISO timestamp
+    val days_since_worn: Int?
+)
 ```
 
 ### StatisticsResponse
 
-```typescript
-interface StatisticsResponse {
-  most_worn: ItemStats[];      // Top 5
-  least_worn: ItemStats[];     // Bottom 5
-  not_worn_30_days: ItemStats[];
-  totals: {
-    total_shirts: number;
-    total_pants: number;
-    total_items: number;
-    total_wears: number;
-  };
-  wear_frequency: {
-    [date: string]: number;    // "2024-01-15": 2
-  };
-}
+```kotlin
+@JsonClass(generateAdapter = true)
+data class StatisticsResponse(
+    val most_worn: List<ItemStats>,
+    val least_worn: List<ItemStats>,
+    val not_worn_30_days: List<ItemStats>,
+    val totals: Totals,
+    val wear_frequency: Map<String, Int>  // "2024-01-15": 2
+)
+
+@JsonClass(generateAdapter = true)
+data class Totals(
+    val total_shirts: Int,
+    val total_pants: Int,
+    val total_items: Int,
+    val total_wears: Int
+)
 ```
 
 ## API Endpoint Signatures
@@ -148,16 +151,21 @@ backend/
     statistics.py                  # Statistics computation logic
     main.py                        # Add statistics endpoint
 
-app/
-  screens/
-    StatisticsScreen.tsx           # Statistics display
-    StatisticsScreen.logic.ts      # Fetch and process stats
-    StatisticsScreen.styles.ts
-  components/
-    ItemStatCard.tsx               # Display item with stats
-    WearFrequencyChart.tsx         # Simple bar chart
-  api/
-    cloudFunctions.ts              # Add getStatistics()
+android/
+  app/src/main/java/com/uniformdist/app/
+    data/
+      model/
+        StatisticsResponse.kt     # Response data classes
+      api/
+        UniformDistApi.kt         # Add getStatistics()
+    ui/
+      screens/
+        statistics/
+          StatisticsScreen.kt     # Statistics display (Compose)
+          StatisticsViewModel.kt  # ViewModel for statistics
+      components/
+        ItemStatCard.kt           # Display item with stats
+        WearFrequencyChart.kt     # Canvas-drawn bar chart
 ```
 
 ## Key Code Snippets
@@ -294,326 +302,429 @@ def statistics_handler(request):
         return jsonify({'error': str(e)}), 500, headers
 ```
 
-### app/api/cloudFunctions.ts (add function)
+### android: data/model/StatisticsResponse.kt
 
-```typescript
-export async function getStatistics(): Promise<StatisticsResponse> {
-  const response = await fetch(`${API_CONFIG.BASE_URL}/statistics`, {
-    method: 'GET',
-    headers: { 'Content-Type': 'application/json' },
-  });
+```kotlin
+package com.uniformdist.app.data.model
 
-  if (!response.ok) {
-    throw new Error(`API error: ${response.status}`);
-  }
+import com.squareup.moshi.JsonClass
 
-  return response.json();
-}
+@JsonClass(generateAdapter = true)
+data class ItemStats(
+    val id: String,
+    val type: String,
+    val image_url: String,
+    val wear_count: Int,
+    val last_worn: String?,
+    val days_since_worn: Int?
+)
+
+@JsonClass(generateAdapter = true)
+data class Totals(
+    val total_shirts: Int,
+    val total_pants: Int,
+    val total_items: Int,
+    val total_wears: Int
+)
+
+@JsonClass(generateAdapter = true)
+data class StatisticsResponse(
+    val most_worn: List<ItemStats>,
+    val least_worn: List<ItemStats>,
+    val not_worn_30_days: List<ItemStats>,
+    val totals: Totals,
+    val wear_frequency: Map<String, Int>
+)
 ```
 
-### app/screens/StatisticsScreen.tsx
+### android: data/api/UniformDistApi.kt (add function)
 
-```typescript
-import React from 'react';
-import { ScrollView, View, Text, RefreshControl } from 'react-native';
-import { useStatistics } from './StatisticsScreen.logic';
-import ItemStatCard from '../components/ItemStatCard';
-import WearFrequencyChart from '../components/WearFrequencyChart';
-import LoadingOverlay from '../components/LoadingOverlay';
-import { styles } from './StatisticsScreen.styles';
-
-export default function StatisticsScreen() {
-  const { stats, loading, error, refreshing, onRefresh } = useStatistics();
-
-  if (loading && !refreshing) {
-    return <LoadingOverlay message="Loading statistics..." />;
-  }
-
-  if (error) {
-    return (
-      <View style={styles.errorContainer}>
-        <Text style={styles.errorText}>Error loading statistics</Text>
-        <Text style={styles.errorDetail}>{error}</Text>
-      </View>
-    );
-  }
-
-  return (
-    <ScrollView
-      style={styles.container}
-      refreshControl={
-        <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
-      }
-    >
-      <Text style={styles.title}>📊 Wardrobe Statistics</Text>
-
-      {/* Totals */}
-      <View style={styles.totalsCard}>
-        <Text style={styles.totalText}>
-          Total Items: {stats.totals.total_items}
-        </Text>
-        <Text style={styles.subText}>
-          {stats.totals.total_shirts} shirts, {stats.totals.total_pants} pants
-        </Text>
-        <Text style={styles.subText}>
-          Total wears: {stats.totals.total_wears}
-        </Text>
-      </View>
-
-      {/* Most Worn */}
-      <View style={styles.section}>
-        <Text style={styles.sectionTitle}>🔥 Most Worn</Text>
-        {stats.most_worn.length > 0 ? (
-          stats.most_worn.map(item => (
-            <ItemStatCard key={item.id} item={item} />
-          ))
-        ) : (
-          <Text style={styles.emptyText}>No items yet</Text>
-        )}
-      </View>
-
-      {/* Least Worn */}
-      <View style={styles.section}>
-        <Text style={styles.sectionTitle}>😴 Least Worn</Text>
-        {stats.least_worn.length > 0 ? (
-          stats.least_worn.map(item => (
-            <ItemStatCard key={item.id} item={item} />
-          ))
-        ) : (
-          <Text style={styles.emptyText}>No items yet</Text>
-        )}
-      </View>
-
-      {/* Not Worn 30+ Days */}
-      {stats.not_worn_30_days.length > 0 && (
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>⏰ Not Worn (30+ days)</Text>
-          {stats.not_worn_30_days.map(item => (
-            <ItemStatCard key={item.id} item={item} showDaysSince />
-          ))}
-        </View>
-      )}
-
-      {/* Wear Frequency Chart */}
-      <View style={styles.section}>
-        <Text style={styles.sectionTitle}>📈 Wear Frequency (30 days)</Text>
-        <WearFrequencyChart data={stats.wear_frequency} />
-      </View>
-    </ScrollView>
-  );
-}
+```kotlin
+// Add to existing UniformDistApi interface:
+@GET("/statistics")
+suspend fun getStatistics(): StatisticsResponse
 ```
 
-### app/screens/StatisticsScreen.logic.ts
+### android: ui/screens/statistics/StatisticsViewModel.kt
 
-```typescript
-import { useState, useEffect } from 'react';
-import { getStatistics } from '../api/cloudFunctions';
-import { StatisticsResponse } from '../api/types';
+```kotlin
+package com.uniformdist.app.ui.screens.statistics
 
-export const useStatistics = () => {
-  const [stats, setStats] = useState<StatisticsResponse | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-  const [refreshing, setRefreshing] = useState(false);
+import androidx.lifecycle.ViewModel
+import androidx.lifecycle.viewModelScope
+import com.uniformdist.app.data.api.UniformDistApi
+import com.uniformdist.app.data.model.StatisticsResponse
+import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.launch
+import javax.inject.Inject
 
-  const fetchStatistics = async () => {
-    try {
-      const data = await getStatistics();
-      setStats(data);
-      setError(null);
-    } catch (err) {
-      setError(err.message);
-    } finally {
-      setLoading(false);
-      setRefreshing(false);
+data class StatisticsUiState(
+    val stats: StatisticsResponse? = null,
+    val isLoading: Boolean = true,
+    val isRefreshing: Boolean = false,
+    val error: String? = null
+)
+
+@HiltViewModel
+class StatisticsViewModel @Inject constructor(
+    private val api: UniformDistApi
+) : ViewModel() {
+
+    private val _uiState = MutableStateFlow(StatisticsUiState())
+    val uiState: StateFlow<StatisticsUiState> = _uiState.asStateFlow()
+
+    init {
+        fetchStatistics()
     }
-  };
 
-  const onRefresh = () => {
-    setRefreshing(true);
-    fetchStatistics();
-  };
+    fun fetchStatistics() {
+        viewModelScope.launch {
+            try {
+                val data = api.getStatistics()
+                _uiState.value = _uiState.value.copy(
+                    stats = data,
+                    isLoading = false,
+                    isRefreshing = false,
+                    error = null
+                )
+            } catch (e: Exception) {
+                _uiState.value = _uiState.value.copy(
+                    isLoading = false,
+                    isRefreshing = false,
+                    error = e.message
+                )
+            }
+        }
+    }
 
-  useEffect(() => {
-    fetchStatistics();
-  }, []);
-
-  return {
-    stats,
-    loading,
-    error,
-    refreshing,
-    onRefresh,
-  };
-};
+    fun refresh() {
+        _uiState.value = _uiState.value.copy(isRefreshing = true)
+        fetchStatistics()
+    }
+}
 ```
 
-### app/components/ItemStatCard.tsx
+### android: ui/screens/statistics/StatisticsScreen.kt
 
-```typescript
-import React from 'react';
-import { View, Text, Image, StyleSheet } from 'react-native';
+```kotlin
+package com.uniformdist.app.ui.screens.statistics
 
-interface ItemStatCardProps {
-  item: {
-    id: string;
-    type: string;
-    image_url: string;
-    wear_count: number;
-    last_worn: string | null;
-    days_since_worn: number | null;
-  };
-  showDaysSince?: boolean;
+import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material3.*
+import androidx.compose.material3.pulltorefresh.PullToRefreshBox
+import androidx.compose.runtime.*
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.unit.dp
+import androidx.hilt.navigation.compose.hiltViewModel
+import com.uniformdist.app.ui.components.ItemStatCard
+import com.uniformdist.app.ui.components.WearFrequencyChart
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun StatisticsScreen(
+    onBack: () -> Unit,
+    viewModel: StatisticsViewModel = hiltViewModel()
+) {
+    val uiState by viewModel.uiState.collectAsState()
+
+    Scaffold(
+        topBar = {
+            TopAppBar(
+                title = { Text("Wardrobe Statistics") },
+                navigationIcon = {
+                    IconButton(onClick = onBack) {
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
+                    }
+                }
+            )
+        }
+    ) { padding ->
+        when {
+            uiState.isLoading && !uiState.isRefreshing -> {
+                Box(
+                    modifier = Modifier.fillMaxSize().padding(padding),
+                    contentAlignment = Alignment.Center
+                ) {
+                    CircularProgressIndicator()
+                }
+            }
+
+            uiState.error != null && uiState.stats == null -> {
+                Box(
+                    modifier = Modifier.fillMaxSize().padding(padding),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                        Text("Error loading statistics")
+                        Text(
+                            uiState.error ?: "",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.error
+                        )
+                        Spacer(modifier = Modifier.height(16.dp))
+                        Button(onClick = { viewModel.fetchStatistics() }) {
+                            Text("Retry")
+                        }
+                    }
+                }
+            }
+
+            else -> {
+                val stats = uiState.stats ?: return@Scaffold
+
+                PullToRefreshBox(
+                    isRefreshing = uiState.isRefreshing,
+                    onRefresh = { viewModel.refresh() },
+                    modifier = Modifier.padding(padding)
+                ) {
+                    Column(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .verticalScroll(rememberScrollState())
+                            .padding(16.dp)
+                    ) {
+                        // Totals card
+                        Card(
+                            modifier = Modifier.fillMaxWidth(),
+                            colors = CardDefaults.cardColors(
+                                containerColor = MaterialTheme.colorScheme.primaryContainer
+                            )
+                        ) {
+                            Column(modifier = Modifier.padding(16.dp)) {
+                                Text(
+                                    "Total Items: ${stats.totals.total_items}",
+                                    style = MaterialTheme.typography.headlineSmall
+                                )
+                                Text(
+                                    "${stats.totals.total_shirts} shirts, ${stats.totals.total_pants} pants",
+                                    style = MaterialTheme.typography.bodyMedium
+                                )
+                                Text(
+                                    "Total wears: ${stats.totals.total_wears}",
+                                    style = MaterialTheme.typography.bodyMedium
+                                )
+                            }
+                        }
+
+                        Spacer(modifier = Modifier.height(24.dp))
+
+                        // Most Worn
+                        Text(
+                            "Most Worn",
+                            style = MaterialTheme.typography.titleLarge,
+                            modifier = Modifier.padding(bottom = 8.dp)
+                        )
+                        if (stats.most_worn.isEmpty()) {
+                            Text("No items yet", color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        } else {
+                            stats.most_worn.forEach { item ->
+                                ItemStatCard(item = item)
+                                Spacer(modifier = Modifier.height(8.dp))
+                            }
+                        }
+
+                        Spacer(modifier = Modifier.height(24.dp))
+
+                        // Least Worn
+                        Text(
+                            "Least Worn",
+                            style = MaterialTheme.typography.titleLarge,
+                            modifier = Modifier.padding(bottom = 8.dp)
+                        )
+                        if (stats.least_worn.isEmpty()) {
+                            Text("No items yet", color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        } else {
+                            stats.least_worn.forEach { item ->
+                                ItemStatCard(item = item)
+                                Spacer(modifier = Modifier.height(8.dp))
+                            }
+                        }
+
+                        // Not worn 30+ days
+                        if (stats.not_worn_30_days.isNotEmpty()) {
+                            Spacer(modifier = Modifier.height(24.dp))
+                            Text(
+                                "Not Worn (30+ days)",
+                                style = MaterialTheme.typography.titleLarge,
+                                modifier = Modifier.padding(bottom = 8.dp)
+                            )
+                            stats.not_worn_30_days.forEach { item ->
+                                ItemStatCard(item = item, showDaysSince = true)
+                                Spacer(modifier = Modifier.height(8.dp))
+                            }
+                        }
+
+                        Spacer(modifier = Modifier.height(24.dp))
+
+                        // Wear Frequency Chart
+                        Text(
+                            "Wear Frequency (30 days)",
+                            style = MaterialTheme.typography.titleLarge,
+                            modifier = Modifier.padding(bottom = 8.dp)
+                        )
+                        WearFrequencyChart(data = stats.wear_frequency)
+                    }
+                }
+            }
+        }
+    }
 }
-
-export default function ItemStatCard({ item, showDaysSince = false }: ItemStatCardProps) {
-  return (
-    <View style={styles.card}>
-      <Image source={{ uri: item.image_url }} style={styles.image} />
-      <View style={styles.info}>
-        <Text style={styles.type}>{item.type}</Text>
-        <Text style={styles.wearCount}>Worn {item.wear_count} times</Text>
-        {showDaysSince && item.days_since_worn !== null && (
-          <Text style={styles.daysSince}>
-            {item.days_since_worn === 0
-              ? 'Worn today'
-              : item.days_since_worn === null
-              ? 'Never worn'
-              : `Last worn: ${item.days_since_worn}d ago`}
-          </Text>
-        )}
-      </View>
-    </View>
-  );
-}
-
-const styles = StyleSheet.create({
-  card: {
-    flexDirection: 'row',
-    backgroundColor: 'white',
-    borderRadius: 12,
-    padding: 12,
-    marginBottom: 12,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
-  },
-  image: {
-    width: 80,
-    height: 80,
-    borderRadius: 8,
-    marginRight: 12,
-  },
-  info: {
-    flex: 1,
-    justifyContent: 'center',
-  },
-  type: {
-    fontSize: 16,
-    fontWeight: '600',
-    textTransform: 'capitalize',
-    marginBottom: 4,
-  },
-  wearCount: {
-    fontSize: 14,
-    color: '#666',
-  },
-  daysSince: {
-    fontSize: 12,
-    color: '#999',
-    marginTop: 4,
-  },
-});
 ```
 
-### app/components/WearFrequencyChart.tsx
+### android: ui/components/ItemStatCard.kt
 
-```typescript
-import React from 'react';
-import { View, Text, StyleSheet } from 'react-native';
+```kotlin
+package com.uniformdist.app.ui.components
 
-interface WearFrequencyChartProps {
-  data: { [date: string]: number };
+import androidx.compose.foundation.layout.*
+import androidx.compose.material3.*
+import androidx.compose.runtime.Composable
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.unit.dp
+import coil.compose.AsyncImage
+import com.uniformdist.app.data.model.ItemStats
+
+@Composable
+fun ItemStatCard(
+    item: ItemStats,
+    showDaysSince: Boolean = false
+) {
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+    ) {
+        Row(
+            modifier = Modifier.padding(12.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            AsyncImage(
+                model = item.image_url,
+                contentDescription = "${item.type} image",
+                modifier = Modifier
+                    .size(72.dp)
+                    .clip(MaterialTheme.shapes.small),
+                contentScale = ContentScale.Crop
+            )
+
+            Spacer(modifier = Modifier.width(12.dp))
+
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = item.type.replaceFirstChar { it.uppercase() },
+                    style = MaterialTheme.typography.titleSmall
+                )
+                Text(
+                    text = "Worn ${item.wear_count} times",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+                if (showDaysSince) {
+                    val dayText = when (item.days_since_worn) {
+                        null -> "Never worn"
+                        0 -> "Worn today"
+                        else -> "Last worn: ${item.days_since_worn}d ago"
+                    }
+                    Text(
+                        text = dayText,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+            }
+        }
+    }
 }
+```
 
-export default function WearFrequencyChart({ data }: WearFrequencyChartProps) {
-  const dates = Object.keys(data).sort();
-  const maxWears = Math.max(...Object.values(data), 1);
+### android: ui/components/WearFrequencyChart.kt
 
-  return (
-    <View style={styles.container}>
-      {dates.length === 0 ? (
-        <Text style={styles.emptyText}>No wear data for the last 30 days</Text>
-      ) : (
-        <View style={styles.chartContainer}>
-          {dates.map(date => (
-            <View key={date} style={styles.barContainer}>
-              <View
-                style={[
-                  styles.bar,
-                  { height: (data[date] / maxWears) * 100 },
-                ]}
-              />
-              <Text style={styles.barLabel}>{data[date]}</Text>
-              <Text style={styles.dateLabel}>
-                {new Date(date).toLocaleDateString('en-US', {
-                  month: 'short',
-                  day: 'numeric',
-                })}
-              </Text>
-            </View>
-          ))}
-        </View>
-      )}
-    </View>
-  );
+```kotlin
+package com.uniformdist.app.ui.components
+
+import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.layout.*
+import androidx.compose.material3.*
+import androidx.compose.runtime.Composable
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.nativeCanvas
+import androidx.compose.ui.unit.dp
+import java.time.LocalDate
+import java.time.format.DateTimeFormatter
+
+@Composable
+fun WearFrequencyChart(
+    data: Map<String, Int>,
+    modifier: Modifier = Modifier
+) {
+    val barColor = MaterialTheme.colorScheme.primary
+
+    if (data.isEmpty()) {
+        Card(modifier = modifier.fillMaxWidth()) {
+            Box(
+                modifier = Modifier.padding(24.dp).fillMaxWidth(),
+                contentAlignment = androidx.compose.ui.Alignment.Center
+            ) {
+                Text(
+                    "No wear data for the last 30 days",
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+        }
+        return
+    }
+
+    val sortedEntries = data.entries.sortedBy { it.key }
+    val maxValue = sortedEntries.maxOf { it.value }.coerceAtLeast(1)
+
+    Card(modifier = modifier.fillMaxWidth()) {
+        Canvas(
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(160.dp)
+                .padding(16.dp)
+        ) {
+            val barWidth = size.width / sortedEntries.size.coerceAtLeast(1)
+            val chartHeight = size.height
+
+            sortedEntries.forEachIndexed { index, entry ->
+                val barHeight = (entry.value.toFloat() / maxValue) * chartHeight
+                val x = index * barWidth
+
+                drawRect(
+                    color = barColor,
+                    topLeft = Offset(x + barWidth * 0.1f, chartHeight - barHeight),
+                    size = Size(barWidth * 0.8f, barHeight)
+                )
+
+                // Draw count label
+                drawContext.canvas.nativeCanvas.drawText(
+                    entry.value.toString(),
+                    x + barWidth / 2,
+                    chartHeight - barHeight - 8f,
+                    android.graphics.Paint().apply {
+                        textAlign = android.graphics.Paint.Align.CENTER
+                        textSize = 28f
+                        color = android.graphics.Color.GRAY
+                    }
+                )
+            }
+        }
+    }
 }
-
-const styles = StyleSheet.create({
-  container: {
-    backgroundColor: 'white',
-    borderRadius: 12,
-    padding: 16,
-    minHeight: 150,
-  },
-  emptyText: {
-    textAlign: 'center',
-    color: '#999',
-    fontSize: 14,
-  },
-  chartContainer: {
-    flexDirection: 'row',
-    alignItems: 'flex-end',
-    justifyContent: 'space-between',
-    height: 120,
-  },
-  barContainer: {
-    flex: 1,
-    alignItems: 'center',
-    marginHorizontal: 2,
-  },
-  bar: {
-    width: '100%',
-    backgroundColor: '#2196F3',
-    borderTopLeftRadius: 4,
-    borderTopRightRadius: 4,
-    minHeight: 4,
-  },
-  barLabel: {
-    fontSize: 10,
-    fontWeight: '600',
-    marginTop: 4,
-  },
-  dateLabel: {
-    fontSize: 8,
-    color: '#666',
-    marginTop: 2,
-    transform: [{ rotate: '-45deg' }],
-  },
-});
 ```
 
 ## Acceptance Criteria
@@ -623,14 +734,15 @@ const styles = StyleSheet.create({
 - [ ] Items not worn in 30+ days identified accurately
 - [ ] Total counts match Firestore data
 - [ ] Wear frequency aggregated by date
-- [ ] StatisticsScreen displays all sections
-- [ ] Item cards show images, wear counts, and dates
-- [ ] Wear frequency chart renders (simple bar chart)
-- [ ] Loading state handled gracefully
-- [ ] Error handling for API failures
+- [ ] StatisticsScreen displays all sections with Material 3 styling
+- [ ] Item cards show images (via Coil), wear counts, and dates
+- [ ] Wear frequency chart renders via Compose Canvas
+- [ ] Loading state handled with CircularProgressIndicator
+- [ ] Error handling with retry button
 - [ ] Statistics update after logging new wear events
 - [ ] Navigation from HomeScreen to StatisticsScreen works
 - [ ] Pull-to-refresh functionality works
+- [ ] Consistent with Material 3 theme from Step 8
 
 ## Setup Instructions
 
@@ -640,11 +752,14 @@ const styles = StyleSheet.create({
    ./deploy.sh  # Already includes statistics endpoint
    ```
 
-2. **Update App Navigation**:
-   Add StatisticsScreen to stack navigator in `App.tsx`
+2. **Add Statistics Screen to Navigation**:
+   Update `NavGraph.kt` from Step 8 to include the Statistics route
 
-3. **Add Navigation Button**:
-   Add button in HomeScreen to navigate to Statistics
+3. **Build and Run**:
+   ```bash
+   cd android
+   ./gradlew assembleDebug
+   ```
 
 ## Verification
 
@@ -700,14 +815,14 @@ def test_statistics():
 
     if response.status_code == 200:
         data = response.json()
-        print(f"✓ Most worn: {len(data['most_worn'])} items")
-        print(f"✓ Least worn: {len(data['least_worn'])} items")
-        print(f"✓ Not worn 30+ days: {len(data['not_worn_30_days'])} items")
-        print(f"✓ Total items: {data['totals']['total_items']}")
-        print(f"✓ Wear frequency: {len(data['wear_frequency'])} dates")
-        print("\n✓ Statistics test passed!")
+        print(f"Most worn: {len(data['most_worn'])} items")
+        print(f"Least worn: {len(data['least_worn'])} items")
+        print(f"Not worn 30+ days: {len(data['not_worn_30_days'])} items")
+        print(f"Total items: {data['totals']['total_items']}")
+        print(f"Wear frequency: {len(data['wear_frequency'])} dates")
+        print("\nStatistics test passed!")
     else:
-        print(f"✗ Error: {response.text}")
+        print(f"Error: {response.text}")
 
 if __name__ == '__main__':
     test_statistics()
@@ -718,3 +833,15 @@ Run test:
 export STATISTICS_URL=https://us-central1-uniform-dist-XXXXX.cloudfunctions.net
 python backend/scripts/test_statistics.py
 ```
+
+### Android Test Checklist
+
+- [ ] Statistics screen opens from home screen
+- [ ] Loading indicator shows while fetching
+- [ ] All sections render with data
+- [ ] Images load correctly via Coil
+- [ ] Bar chart renders with correct proportions
+- [ ] Pull-to-refresh triggers data reload
+- [ ] Error state shows retry button
+- [ ] Back navigation works
+- [ ] Screen handles empty data gracefully
