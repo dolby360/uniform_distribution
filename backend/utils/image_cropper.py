@@ -37,6 +37,10 @@ def crop_clothing_item(image_bytes: bytes, bounding_box: Dict,
     # Crop and return
     cropped = image.crop((x_min, y_min, x_max, y_max))
 
+    # Convert RGBA/P to RGB for JPEG compatibility
+    if cropped.mode in ('RGBA', 'P'):
+        cropped = cropped.convert('RGB')
+
     output = io.BytesIO()
     cropped.save(output, format='JPEG', quality=90)
     return output.getvalue()

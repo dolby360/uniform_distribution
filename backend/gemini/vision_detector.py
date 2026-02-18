@@ -11,7 +11,7 @@ from .prompts import DETECTION_PROMPT
 class VisionDetector:
     def __init__(self):
         genai.configure(api_key=os.getenv('GEMINI_API_KEY'))
-        self.model = genai.GenerativeModel('gemini-1.5-flash')
+        self.model = genai.GenerativeModel('gemini-2.5-flash')
 
     def detect_clothing(self, image_bytes: bytes) -> Dict:
         """

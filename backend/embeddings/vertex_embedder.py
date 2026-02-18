@@ -1,9 +1,9 @@
 from google.cloud import aiplatform
-from google.cloud.aiplatform.gapic.schema import predict
 import base64
 import os
 import numpy as np
 from typing import List
+from google.protobuf import struct_pb2
 
 
 class VertexEmbedder:
@@ -36,16 +36,28 @@ class VertexEmbedder:
         }
         client = aiplatform.gapic.PredictionServiceClient(client_options=client_options)
 
-        instance = predict.instance.ImageEmbeddingInstance(
-            image=predict.instance.Image(bytes_base64_encoded=image_base64)
+        instance = struct_pb2.Value(
+            struct_value=struct_pb2.Struct(
+                fields={
+                    "image": struct_pb2.Value(
+                        struct_value=struct_pb2.Struct(
+                            fields={
+                                "bytesBase64Encoded": struct_pb2.Value(
+                                    string_value=image_base64
+                                )
+                            }
+                        )
+                    )
+                }
+            )
         )
 
         response = client.predict(
             endpoint=self.endpoint_name,
-            instances=[instance.to_value()]
+            instances=[instance]
         )
 
-        embedding = response.predictions[0]['imageEmbedding']
+        embedding = list(response.predictions[0]['imageEmbedding'])
 
         normalized_embedding = self._normalize_embedding(embedding)
 
