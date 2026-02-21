@@ -76,10 +76,11 @@ def process_outfit_image(image_bytes: bytes) -> dict:
             .where('type', '==', item_type)\
             .stream()
 
-        candidates = [
-            (item.id, item.to_dict()['embedding'])
-            for item in existing_items
-        ]
+        candidates = []
+        for item in existing_items:
+            data = item.to_dict()
+            for emb in data['embeddings'].values():
+                candidates.append((item.id, emb))
 
         match = find_most_similar(embedding, candidates, threshold=0.85)
 
@@ -93,8 +94,9 @@ def process_outfit_image(image_bytes: bytes) -> dict:
                 'matched': True,
                 'item_id': item_id,
                 'similarity': float(similarity),
-                'image_url': storage.get_signed_url(item_data['image_url']),
-                'cropped_url': storage.get_signed_url(cropped_url)
+                'image_url': storage.get_signed_url(item_data['image_urls'][0]),
+                'cropped_url': storage.get_signed_url(cropped_url),
+                'embedding': embedding
             }
         else:
             result[item_type] = {

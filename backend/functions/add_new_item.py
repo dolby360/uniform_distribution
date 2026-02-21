@@ -26,8 +26,8 @@ def add_new_item(item_type: str, cropped_image_url: str,
     # Create new item
     item_data = {
         'type': item_type,
-        'image_url': cropped_image_url,
-        'embedding': embedding,
+        'image_urls': [cropped_image_url],
+        'embeddings': {'0': embedding},
         'created_at': firestore.SERVER_TIMESTAMP,
         'last_worn': firestore.SERVER_TIMESTAMP if log_wear else None,
         'wear_count': 1 if log_wear else 0

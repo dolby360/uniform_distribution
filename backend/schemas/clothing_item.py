@@ -1,14 +1,17 @@
-from dataclasses import dataclass
-from typing import Optional, List
+from dataclasses import dataclass, field
+from typing import Optional, List, Dict
 from datetime import datetime
 from google.cloud.firestore import SERVER_TIMESTAMP
+
+
+MAX_SAMPLES = 10
 
 
 @dataclass
 class ClothingItem:
     type: str  # "shirt" or "pants"
-    image_url: str
-    embedding: List[float]
+    image_urls: List[str]
+    embeddings: Dict[str, List[float]]  # {"0": [1408 floats], "1": [1408 floats], ...}
     created_at: datetime = SERVER_TIMESTAMP
     last_worn: Optional[datetime] = None
     wear_count: int = 0
@@ -19,8 +22,8 @@ class ClothingItem:
         """Convert to Firestore document format"""
         return {
             'type': self.type,
-            'image_url': self.image_url,
-            'embedding': self.embedding,
+            'image_urls': self.image_urls,
+            'embeddings': self.embeddings,
             'created_at': self.created_at,
             'last_worn': self.last_worn,
             'wear_count': self.wear_count,
@@ -32,8 +35,8 @@ class ClothingItem:
         """Create ClothingItem from Firestore document"""
         item = ClothingItem(
             type=data['type'],
-            image_url=data['image_url'],
-            embedding=data['embedding'],
+            image_urls=data['image_urls'],
+            embeddings=data['embeddings'],
             created_at=data.get('created_at'),
             last_worn=data.get('last_worn'),
             wear_count=data.get('wear_count', 0),
@@ -45,5 +48,7 @@ class ClothingItem:
     def validate(self):
         """Validate item data"""
         assert self.type in ['shirt', 'pants'], f"Invalid type: {self.type}"
-        assert len(self.embedding) == 1408, f"Invalid embedding length: {len(self.embedding)}"
+        assert len(self.embeddings) <= MAX_SAMPLES, f"Too many samples: {len(self.embeddings)}"
+        for emb in self.embeddings.values():
+            assert len(emb) == 1408, f"Invalid embedding length: {len(emb)}"
         assert self.wear_count >= 0, f"Invalid wear_count: {self.wear_count}"

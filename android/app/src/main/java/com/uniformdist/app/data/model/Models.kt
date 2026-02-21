@@ -35,7 +35,9 @@ data class ConfirmMatchRequest(
     val item_id: String,
     val item_type: String,
     val original_photo_url: String,
-    val similarity_score: Double? = null
+    val similarity_score: Double? = null,
+    val embedding: List<Double>? = null,
+    val cropped_url: String? = null
 )
 
 @JsonClass(generateAdapter = true)

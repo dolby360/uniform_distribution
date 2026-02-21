@@ -23,7 +23,7 @@ def get_statistics() -> dict:
         all_items.append({
             'id': doc.id,
             'type': data['type'],
-            'image_url': data['image_url'],
+            'image_url': data['image_urls'][0],
             'wear_count': data.get('wear_count', 0),
             'last_worn': data.get('last_worn'),
         })

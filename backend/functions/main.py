@@ -73,7 +73,9 @@ def confirm_match_handler(request):
             data['item_id'],
             data['item_type'],
             data['original_photo_url'],
-            data.get('similarity_score')
+            data.get('similarity_score'),
+            data.get('embedding'),
+            data.get('cropped_url')
         )
         return jsonify(result), 200, headers
 

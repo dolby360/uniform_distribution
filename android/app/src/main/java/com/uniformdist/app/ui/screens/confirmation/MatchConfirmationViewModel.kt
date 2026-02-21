@@ -64,7 +64,9 @@ class MatchConfirmationViewModel @Inject constructor(
                     itemId = item.item_id ?: return@launch,
                     itemType = itemType,
                     originalPhotoUrl = _uiState.value.matchResults?.original_photo_url ?: "",
-                    similarityScore = item.similarity
+                    similarityScore = item.similarity,
+                    embedding = item.embedding,
+                    croppedUrl = item.cropped_url
                 )
                 markHandled(itemType)
             } catch (e: Exception) {

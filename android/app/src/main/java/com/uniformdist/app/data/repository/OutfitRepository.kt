@@ -17,14 +17,18 @@ class OutfitRepository @Inject constructor(
         itemId: String,
         itemType: String,
         originalPhotoUrl: String,
-        similarityScore: Double? = null
+        similarityScore: Double? = null,
+        embedding: List<Double>? = null,
+        croppedUrl: String? = null
     ): ConfirmMatchResponse {
         return api.confirmMatch(
             request = ConfirmMatchRequest(
                 item_id = itemId,
                 item_type = itemType,
                 original_photo_url = originalPhotoUrl,
-                similarity_score = similarityScore
+                similarity_score = similarityScore,
+                embedding = embedding,
+                cropped_url = croppedUrl
             )
         )
     }
