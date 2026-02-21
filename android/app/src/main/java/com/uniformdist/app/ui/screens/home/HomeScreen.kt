@@ -53,26 +53,16 @@ fun HomeScreen(
                 )
             )
         },
-        floatingActionButton = {
-            LargeFloatingActionButton(
-                onClick = onTakePhoto,
-                shape = CircleShape,
-                containerColor = MaterialTheme.colorScheme.tertiary,
-                contentColor = MaterialTheme.colorScheme.onTertiary
-            ) {
-                Icon(
-                    Icons.Default.CameraAlt,
-                    contentDescription = "Take Photo",
-                    modifier = Modifier.size(28.dp)
-                )
-            }
-        },
         containerColor = MaterialTheme.colorScheme.background
     ) { padding ->
-        Column(
+        Box(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(padding)
+        ) {
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
                 .padding(horizontal = 24.dp),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
@@ -112,6 +102,23 @@ fun HomeScreen(
                 )
                 Spacer(modifier = Modifier.width(8.dp))
                 Text("View Statistics")
+            }
+        }
+
+            LargeFloatingActionButton(
+                onClick = onTakePhoto,
+                shape = CircleShape,
+                containerColor = MaterialTheme.colorScheme.tertiary,
+                contentColor = MaterialTheme.colorScheme.onTertiary,
+                modifier = Modifier
+                    .align(Alignment.BottomCenter)
+                    .padding(bottom = 32.dp)
+            ) {
+                Icon(
+                    Icons.Default.CameraAlt,
+                    contentDescription = "Take Photo",
+                    modifier = Modifier.size(28.dp)
+                )
             }
         }
     }
