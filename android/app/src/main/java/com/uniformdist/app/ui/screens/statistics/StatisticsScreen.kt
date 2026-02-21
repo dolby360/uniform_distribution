@@ -29,14 +29,20 @@ fun StatisticsScreen(
 
     Scaffold(
         topBar = {
-            TopAppBar(
-                title = { Text("Wardrobe Statistics") },
+            CenterAlignedTopAppBar(
+                title = {
+                    Text(
+                        "Wardrobe Statistics",
+                        style = MaterialTheme.typography.headlineSmall,
+                        fontWeight = FontWeight.Medium
+                    )
+                },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
                     }
                 },
-                colors = TopAppBarDefaults.topAppBarColors(
+                colors = TopAppBarDefaults.centerAlignedTopAppBarColors(
                     containerColor = MaterialTheme.colorScheme.surface,
                     titleContentColor = MaterialTheme.colorScheme.onSurface
                 )
