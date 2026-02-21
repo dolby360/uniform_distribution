@@ -25,7 +25,7 @@ Initialize GCP project, enable required APIs, configure service accounts, and se
 
 ## Current State (Audited 2026-02-14)
 
-> **Real values** are in [`private-gcp-config.md`](private-gcp-config.md) (gitignored).
+> **Real values** are in [`private-gcp-config.md`](../private-gcp-config.md) (gitignored).
 > Placeholders below map to that file's "Quick Reference" table.
 
 ### Project Details
