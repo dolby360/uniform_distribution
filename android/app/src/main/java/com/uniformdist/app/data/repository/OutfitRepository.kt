@@ -13,6 +13,20 @@ class OutfitRepository @Inject constructor(
         return api.processOutfit(request = ProcessOutfitRequest(image = imageBase64))
     }
 
+    suspend fun processManualCrop(
+        originalImageBase64: String,
+        shirtImageBase64: String?,
+        pantsImageBase64: String?
+    ): ProcessOutfitResponse {
+        return api.processManualCrop(
+            request = ProcessManualCropRequest(
+                original_image = originalImageBase64,
+                shirt_image = shirtImageBase64,
+                pants_image = pantsImageBase64
+            )
+        )
+    }
+
     suspend fun confirmMatch(
         itemId: String,
         itemType: String,

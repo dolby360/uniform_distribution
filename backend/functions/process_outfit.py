@@ -7,10 +7,9 @@ sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')
 from storage.storage_client import StorageClient
 from gemini.vision_detector import VisionDetector
 from utils.image_cropper import crop_clothing_item
+from utils.match_pipeline import embed_and_match
 from embeddings.vertex_embedder import VertexEmbedder
-from embeddings.similarity import find_most_similar
 from google.cloud import firestore
-import uuid
 
 
 def process_outfit_image(image_bytes: bytes) -> dict:
@@ -63,47 +62,9 @@ def process_outfit_image(image_bytes: bytes) -> dict:
             item_type=item_type
         )
 
-        # 4. Generate embedding
-        embedding = embedder.generate_embedding(cropped_bytes)
-
-        # Upload cropped image
-        temp_id = str(uuid.uuid4())
-        cropped_url = storage.upload_cropped_item(
-            cropped_bytes, item_type, temp_id
+        # 4-6. Embed, match, and build result
+        result[item_type] = embed_and_match(
+            cropped_bytes, item_type, storage, embedder, db
         )
-
-        # 5. Search for similar items in Firestore
-        existing_items = db.collection('clothing_items')\
-            .where('type', '==', item_type)\
-            .stream()
-
-        candidates = []
-        for item in existing_items:
-            data = item.to_dict()
-            for emb in data['embeddings'].values():
-                candidates.append((item.id, emb))
-
-        match = find_most_similar(embedding, candidates, threshold=0.85)
-
-        # 6. Build result
-        if match:
-            item_id, similarity = match
-            item_doc = db.collection('clothing_items').document(item_id).get()
-            item_data = item_doc.to_dict()
-
-            result[item_type] = {
-                'matched': True,
-                'item_id': item_id,
-                'similarity': float(similarity),
-                'image_url': storage.get_signed_url(item_data['image_urls'][0]),
-                'cropped_url': storage.get_signed_url(cropped_url),
-                'embedding': embedding
-            }
-        else:
-            result[item_type] = {
-                'matched': False,
-                'cropped_url': storage.get_signed_url(cropped_url),
-                'embedding': embedding
-            }
 
     return result

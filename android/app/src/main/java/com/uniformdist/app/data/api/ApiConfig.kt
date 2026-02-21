@@ -10,6 +10,7 @@ object ApiConfig {
     const val STATISTICS_URL = "https://statistics-u7f42vzzaq-uc.a.run.app"
     const val GET_ITEM_IMAGES_URL = "https://get-item-images-u7f42vzzaq-uc.a.run.app"
     const val DELETE_ITEM_IMAGE_URL = "https://delete-item-image-u7f42vzzaq-uc.a.run.app"
+    const val PROCESS_MANUAL_CROP_URL = "https://process-manual-crop-u7f42vzzaq-uc.a.run.app"
 
     // Retrofit needs a base URL even though we override per-request
     // Using a placeholder that gets overridden by the interceptor

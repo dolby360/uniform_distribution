@@ -8,6 +8,7 @@ import androidx.navigation.compose.composable
 import androidx.navigation.navArgument
 import com.uniformdist.app.ui.screens.camera.CameraScreen
 import com.uniformdist.app.ui.screens.confirmation.MatchConfirmationScreen
+import com.uniformdist.app.ui.screens.crop.ManualCropScreen
 import com.uniformdist.app.ui.screens.home.HomeScreen
 import com.uniformdist.app.ui.screens.itemdetail.ItemDetailScreen
 import com.uniformdist.app.ui.screens.statistics.StatisticsScreen
@@ -26,7 +27,24 @@ fun NavGraph(navController: NavHostController) {
                 onNavigateBack = { navController.popBackStack() },
                 onPhotoProcessed = { resultJson ->
                     navController.navigate(Screen.MatchConfirmation.createRoute(resultJson))
+                },
+                onManualCrop = { imageUri ->
+                    navController.navigate(Screen.ManualCrop.createRoute(imageUri))
                 }
+            )
+        }
+        composable(
+            route = Screen.ManualCrop.route,
+            arguments = listOf(navArgument("imageUri") { type = NavType.StringType })
+        ) {
+            ManualCropScreen(
+                imageUri = it.arguments?.getString("imageUri") ?: "",
+                onCropComplete = { resultJson ->
+                    navController.navigate(Screen.MatchConfirmation.createRoute(resultJson)) {
+                        popUpTo(Screen.Camera.route) { inclusive = true }
+                    }
+                },
+                onNavigateBack = { navController.popBackStack() }
             )
         }
         composable(

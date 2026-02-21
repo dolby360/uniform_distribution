@@ -16,6 +16,12 @@ interface UniformDistApi {
     ): ProcessOutfitResponse
 
     @POST
+    suspend fun processManualCrop(
+        @Url url: String = ApiConfig.PROCESS_MANUAL_CROP_URL,
+        @Body request: ProcessManualCropRequest
+    ): ProcessOutfitResponse
+
+    @POST
     suspend fun confirmMatch(
         @Url url: String = ApiConfig.CONFIRM_MATCH_URL,
         @Body request: ConfirmMatchRequest

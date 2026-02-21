@@ -2,6 +2,7 @@ import functions_framework
 from flask import jsonify
 import base64
 from process_outfit import process_outfit_image
+from process_manual_crop import process_manual_crop
 from confirm_match import confirm_match
 from add_new_item import add_new_item
 from statistics import get_statistics
@@ -36,6 +37,51 @@ def process_outfit(request):
         image_bytes = base64.b64decode(image_base64)
 
         result = process_outfit_image(image_bytes)
+
+        return jsonify(result), 200, headers
+
+    except Exception as e:
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500, headers
+
+
+@functions_framework.http
+def process_manual_crop_handler(request):
+    """
+    HTTP Cloud Function: Process manually-cropped outfit images
+
+    POST /process-manual-crop
+    Body: {
+        "original_image": "base64...",
+        "shirt_image": "base64..." (optional),
+        "pants_image": "base64..." (optional)
+    }
+    """
+    if request.method == 'OPTIONS':
+        headers = {
+            'Access-Control-Allow-Origin': '*',
+            'Access-Control-Allow-Methods': 'POST',
+            'Access-Control-Allow-Headers': 'Content-Type',
+        }
+        return ('', 204, headers)
+
+    headers = {'Access-Control-Allow-Origin': '*'}
+
+    try:
+        data = request.get_json()
+        if not data or 'original_image' not in data:
+            return jsonify({'success': False, 'error': 'Missing original_image'}), 400, headers
+
+        if not data.get('shirt_image') and not data.get('pants_image'):
+            return jsonify({'success': False, 'error': 'At least one crop (shirt_image or pants_image) is required'}), 400, headers
+
+        original_bytes = base64.b64decode(data['original_image'])
+        shirt_bytes = base64.b64decode(data['shirt_image']) if data.get('shirt_image') else None
+        pants_bytes = base64.b64decode(data['pants_image']) if data.get('pants_image') else None
+
+        result = process_manual_crop(original_bytes, shirt_bytes, pants_bytes)
 
         return jsonify(result), 200, headers
 

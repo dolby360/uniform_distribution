@@ -46,12 +46,33 @@ import java.io.File
 fun CameraScreen(
     onNavigateBack: () -> Unit,
     onPhotoProcessed: (String) -> Unit,
+    onManualCrop: (String) -> Unit,
     viewModel: CameraViewModel = hiltViewModel()
 ) {
     val context = LocalContext.current
     val uiState by viewModel.uiState.collectAsState()
 
     val cameraPermissionState = rememberPermissionState(android.Manifest.permission.CAMERA)
+
+    // State for the crop choice dialog
+    var capturedImageBytes by remember { mutableStateOf<ByteArray?>(null) }
+    var showCropChoiceDialog by remember { mutableStateOf(false) }
+
+    // Gallery picker — lives here so the result callback directly
+    // updates the dialog state (avoids lifecycle issues when returning from picker)
+    val galleryPickerLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.PickVisualMedia()
+    ) { uri ->
+        uri?.let {
+            val bytes = context.contentResolver.openInputStream(it)?.use { stream ->
+                stream.readBytes()
+            }
+            if (bytes != null) {
+                capturedImageBytes = bytes
+                showCropChoiceDialog = true
+            }
+        }
+    }
 
     LaunchedEffect(Unit) {
         if (!cameraPermissionState.status.isGranted) {
@@ -79,7 +100,15 @@ fun CameraScreen(
     ) {
         if (cameraPermissionState.status.isGranted) {
             CameraPreviewContent(
-                onPhotoTaken = { imageBytes -> viewModel.processOutfit(imageBytes) },
+                onPhotoTaken = { imageBytes ->
+                    capturedImageBytes = imageBytes
+                    showCropChoiceDialog = true
+                },
+                onPickFromGallery = {
+                    galleryPickerLauncher.launch(
+                        PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)
+                    )
+                },
                 enabled = !uiState.isProcessing,
                 onNavigateBack = onNavigateBack
             )
@@ -136,6 +165,41 @@ fun CameraScreen(
             LoadingOverlay(message = "Analyzing outfit...")
         }
 
+        // Crop choice dialog
+        if (showCropChoiceDialog) {
+            AlertDialog(
+                onDismissRequest = {
+                    showCropChoiceDialog = false
+                    capturedImageBytes = null
+                },
+                title = { Text("Detect Clothing Items") },
+                text = { Text("How would you like to identify the shirt and pants?") },
+                confirmButton = {
+                    TextButton(onClick = {
+                        showCropChoiceDialog = false
+                        capturedImageBytes?.let { viewModel.processOutfit(it) }
+                        capturedImageBytes = null
+                    }) {
+                        Text("AI Auto-Detect")
+                    }
+                },
+                dismissButton = {
+                    TextButton(onClick = {
+                        showCropChoiceDialog = false
+                        capturedImageBytes?.let { bytes ->
+                            val tempFile = File(context.cacheDir, "manual_crop_${System.currentTimeMillis()}.jpg")
+                            tempFile.writeBytes(bytes)
+                            val encodedPath = java.net.URLEncoder.encode(tempFile.absolutePath, "UTF-8")
+                            onManualCrop(encodedPath)
+                        }
+                        capturedImageBytes = null
+                    }) {
+                        Text("Crop Manually")
+                    }
+                }
+            )
+        }
+
         // Error
         uiState.error?.let { error ->
             AlertDialog(
@@ -155,25 +219,13 @@ fun CameraScreen(
 @Composable
 private fun CameraPreviewContent(
     onPhotoTaken: (ByteArray) -> Unit,
+    onPickFromGallery: () -> Unit,
     enabled: Boolean,
     onNavigateBack: () -> Unit
 ) {
     val context = LocalContext.current
     val lifecycleOwner = LocalLifecycleOwner.current
     var imageCapture by remember { mutableStateOf<ImageCapture?>(null) }
-
-    val photoPickerLauncher = rememberLauncherForActivityResult(
-        contract = ActivityResultContracts.PickVisualMedia()
-    ) { uri ->
-        uri?.let {
-            val bytes = context.contentResolver.openInputStream(it)?.use { stream ->
-                stream.readBytes()
-            }
-            if (bytes != null) {
-                onPhotoTaken(bytes)
-            }
-        }
-    }
 
     Box(modifier = Modifier.fillMaxSize()) {
         // Full-screen camera preview
@@ -244,11 +296,7 @@ private fun CameraPreviewContent(
         ) {
             // Gallery picker (left)
             IconButton(
-                onClick = {
-                    photoPickerLauncher.launch(
-                        PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)
-                    )
-                },
+                onClick = onPickFromGallery,
                 enabled = enabled,
                 modifier = Modifier
                     .size(48.dp)

@@ -28,6 +28,15 @@ data class ProcessOutfitResponse(
     val error: String? = null
 )
 
+// --- Process Manual Crop ---
+
+@JsonClass(generateAdapter = true)
+data class ProcessManualCropRequest(
+    val original_image: String,
+    val shirt_image: String? = null,
+    val pants_image: String? = null
+)
+
 // --- Confirm Match ---
 
 @JsonClass(generateAdapter = true)
