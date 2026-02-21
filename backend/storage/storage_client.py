@@ -98,18 +98,21 @@ class StorageClient:
         )
         return self._signing_credentials
 
-    def get_signed_url(self, gs_url: str, expiration_minutes: int = 60) -> str:
+    def get_signed_url(self, url: str, expiration_minutes: int = 60) -> str:
         """
         Generate signed URL for image access.
 
         Args:
-            gs_url: gs://bucket/path format URL
+            url: gs://bucket/path or https://storage.googleapis.com/bucket/path URL
             expiration_minutes: URL validity period (default: 60 minutes)
 
         Returns:
             HTTPS signed URL for temporary access
         """
-        path = gs_url.replace(f"gs://{self.bucket_name}/", "")
+        if url.startswith(f"https://storage.googleapis.com/{self.bucket_name}/"):
+            path = url.split(f"/{self.bucket_name}/", 1)[1].split("?")[0]
+        else:
+            path = url.replace(f"gs://{self.bucket_name}/", "")
         blob = self.bucket.blob(path)
 
         url = blob.generate_signed_url(

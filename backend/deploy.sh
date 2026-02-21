@@ -60,9 +60,9 @@ gcloud functions deploy statistics \
   --entry-point=statistics_handler \
   --trigger-http \
   --allow-unauthenticated \
-  --timeout=10s \
+  --timeout=30s \
   --memory=256MB \
-  --set-env-vars GCP_PROJECT_ID=$GCP_PROJECT_ID
+  --set-env-vars GCP_PROJECT_ID=$GCP_PROJECT_ID,STORAGE_BUCKET=$STORAGE_BUCKET
 
 echo "statistics deployed"
 

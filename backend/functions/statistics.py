@@ -3,7 +3,7 @@ import os
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
 from google.cloud import firestore
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from storage.storage_client import StorageClient
 
 
@@ -14,68 +14,58 @@ def get_statistics() -> dict:
     db = firestore.Client(project=os.getenv('GCP_PROJECT_ID'))
     storage = StorageClient()
 
-    thirty_days_ago = datetime.now() - timedelta(days=30)
+    thirty_days_ago = datetime.now(timezone.utc) - timedelta(days=30)
 
-    # 1. Most worn items (top 5)
-    most_worn_query = db.collection('clothing_items')\
-        .order_by('wear_count', direction=firestore.Query.DESCENDING)\
-        .limit(5)
-
-    most_worn = []
-    for doc in most_worn_query.stream():
+    # Single query for all items
+    all_items = []
+    for doc in db.collection('clothing_items').stream():
         data = doc.to_dict()
-        most_worn.append({
+        all_items.append({
             'id': doc.id,
             'type': data['type'],
-            'image_url': storage.get_signed_url(data['image_url']),
-            'wear_count': data['wear_count'],
-            'last_worn': data.get('last_worn').isoformat() if data.get('last_worn') else None,
-            'days_since_worn': calculate_days_since(data.get('last_worn'))
+            'image_url': data['image_url'],
+            'wear_count': data.get('wear_count', 0),
+            'last_worn': data.get('last_worn'),
         })
 
-    # 2. Least worn items (bottom 5)
-    least_worn_query = db.collection('clothing_items')\
-        .order_by('wear_count', direction=firestore.Query.ASCENDING)\
-        .limit(5)
+    # Sort for most/least worn
+    sorted_by_wear = sorted(all_items, key=lambda x: x['wear_count'], reverse=True)
+    most_worn_raw = sorted_by_wear[:5]
+    least_worn_raw = sorted(all_items, key=lambda x: x['wear_count'])[:5]
 
-    least_worn = []
-    for doc in least_worn_query.stream():
-        data = doc.to_dict()
-        least_worn.append({
-            'id': doc.id,
-            'type': data['type'],
-            'image_url': storage.get_signed_url(data['image_url']),
-            'wear_count': data['wear_count'],
-            'last_worn': data.get('last_worn').isoformat() if data.get('last_worn') else None,
-            'days_since_worn': calculate_days_since(data.get('last_worn'))
-        })
+    # Items not worn in 30+ days
+    not_worn_30_raw = [
+        item for item in all_items
+        if item['last_worn'] is None or item['last_worn'] < thirty_days_ago
+    ]
 
-    # 3. Items not worn in 30+ days
-    all_items = db.collection('clothing_items').stream()
+    # Sign URLs only for items we need
+    seen_urls = {}
+    def sign_url(url):
+        if url not in seen_urls:
+            seen_urls[url] = storage.get_signed_url(url)
+        return seen_urls[url]
 
-    not_worn_30_days = []
-    for doc in all_items:
-        data = doc.to_dict()
-        last_worn = data.get('last_worn')
+    def format_item(item):
+        return {
+            'id': item['id'],
+            'type': item['type'],
+            'image_url': sign_url(item['image_url']),
+            'wear_count': item['wear_count'],
+            'last_worn': item['last_worn'].isoformat() if item['last_worn'] else None,
+            'days_since_worn': calculate_days_since(item['last_worn']),
+        }
 
-        if last_worn is None or last_worn < thirty_days_ago:
-            not_worn_30_days.append({
-                'id': doc.id,
-                'type': data['type'],
-                'image_url': storage.get_signed_url(data['image_url']),
-                'wear_count': data['wear_count'],
-                'last_worn': last_worn.isoformat() if last_worn else None,
-                'days_since_worn': calculate_days_since(last_worn)
-            })
+    most_worn = [format_item(i) for i in most_worn_raw]
+    least_worn = [format_item(i) for i in least_worn_raw]
+    not_worn_30_days = [format_item(i) for i in not_worn_30_raw]
 
-    # 4. Totals
-    all_items_list = list(db.collection('clothing_items').stream())
-    total_shirts = sum(1 for item in all_items_list if item.to_dict()['type'] == 'shirt')
-    total_pants = sum(1 for item in all_items_list if item.to_dict()['type'] == 'pants')
+    # Totals
+    total_shirts = sum(1 for item in all_items if item['type'] == 'shirt')
+    total_pants = sum(1 for item in all_items if item['type'] == 'pants')
+    total_wears = sum(item['wear_count'] for item in all_items)
 
-    total_wears = sum(item.to_dict().get('wear_count', 0) for item in all_items_list)
-
-    # 5. Wear frequency (last 30 days)
+    # Wear frequency (last 30 days)
     wear_logs_query = db.collection('wear_logs')\
         .where('worn_at', '>=', thirty_days_ago)\
         .stream()
@@ -105,6 +95,6 @@ def calculate_days_since(timestamp):
     if timestamp is None:
         return None
 
-    now = datetime.now()
+    now = datetime.now(timezone.utc)
     delta = now - timestamp
     return delta.days
