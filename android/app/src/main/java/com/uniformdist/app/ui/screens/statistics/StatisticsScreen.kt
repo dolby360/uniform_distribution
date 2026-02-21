@@ -2,6 +2,7 @@ package com.uniformdist.app.ui.screens.statistics
 
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
@@ -12,6 +13,7 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.uniformdist.app.ui.components.ItemStatCard
@@ -33,27 +35,42 @@ fun StatisticsScreen(
                     IconButton(onClick = onBack) {
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
                     }
-                }
+                },
+                colors = TopAppBarDefaults.topAppBarColors(
+                    containerColor = MaterialTheme.colorScheme.surface,
+                    titleContentColor = MaterialTheme.colorScheme.onSurface
+                )
             )
-        }
+        },
+        containerColor = MaterialTheme.colorScheme.background
     ) { padding ->
         when {
             uiState.isLoading && !uiState.isRefreshing -> {
                 Box(
-                    modifier = Modifier.fillMaxSize().padding(padding),
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(padding),
                     contentAlignment = Alignment.Center
                 ) {
-                    CircularProgressIndicator()
+                    CircularProgressIndicator(
+                        color = MaterialTheme.colorScheme.primary
+                    )
                 }
             }
 
             uiState.error != null && uiState.stats == null -> {
                 Box(
-                    modifier = Modifier.fillMaxSize().padding(padding),
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(padding),
                     contentAlignment = Alignment.Center
                 ) {
                     Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                        Text("Error loading statistics")
+                        Text(
+                            "Error loading statistics",
+                            style = MaterialTheme.typography.titleMedium,
+                            color = MaterialTheme.colorScheme.onSurface
+                        )
                         Text(
                             uiState.error ?: "",
                             style = MaterialTheme.typography.bodySmall,
@@ -98,20 +115,26 @@ fun StatisticsScreen(
                             modifier = Modifier.fillMaxWidth(),
                             colors = CardDefaults.cardColors(
                                 containerColor = MaterialTheme.colorScheme.primaryContainer
-                            )
+                            ),
+                            shape = RoundedCornerShape(12.dp)
                         ) {
-                            Column(modifier = Modifier.padding(16.dp)) {
+                            Column(modifier = Modifier.padding(20.dp)) {
                                 Text(
                                     "Total Items: ${stats.totals.total_items}",
-                                    style = MaterialTheme.typography.headlineSmall
+                                    style = MaterialTheme.typography.headlineSmall,
+                                    fontWeight = FontWeight.SemiBold,
+                                    color = MaterialTheme.colorScheme.onPrimaryContainer
                                 )
+                                Spacer(modifier = Modifier.height(4.dp))
                                 Text(
                                     "${stats.totals.total_shirts} shirts, ${stats.totals.total_pants} pants",
-                                    style = MaterialTheme.typography.bodyMedium
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    color = MaterialTheme.colorScheme.onPrimaryContainer
                                 )
                                 Text(
                                     "Total wears: ${stats.totals.total_wears}",
-                                    style = MaterialTheme.typography.bodyMedium
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    color = MaterialTheme.colorScheme.onPrimaryContainer
                                 )
                             }
                         }
@@ -122,10 +145,14 @@ fun StatisticsScreen(
                         Text(
                             "Most Worn",
                             style = MaterialTheme.typography.titleLarge,
+                            fontWeight = FontWeight.SemiBold,
                             modifier = Modifier.padding(bottom = 8.dp)
                         )
                         if (stats.most_worn.isEmpty()) {
-                            Text("No items yet", color = MaterialTheme.colorScheme.onSurfaceVariant)
+                            Text(
+                                "No items yet",
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
                         } else {
                             stats.most_worn.forEach { item ->
                                 ItemStatCard(item = item)
@@ -139,10 +166,14 @@ fun StatisticsScreen(
                         Text(
                             "Least Worn",
                             style = MaterialTheme.typography.titleLarge,
+                            fontWeight = FontWeight.SemiBold,
                             modifier = Modifier.padding(bottom = 8.dp)
                         )
                         if (stats.least_worn.isEmpty()) {
-                            Text("No items yet", color = MaterialTheme.colorScheme.onSurfaceVariant)
+                            Text(
+                                "No items yet",
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
                         } else {
                             stats.least_worn.forEach { item ->
                                 ItemStatCard(item = item)
@@ -156,6 +187,7 @@ fun StatisticsScreen(
                             Text(
                                 "Not Worn (30+ days)",
                                 style = MaterialTheme.typography.titleLarge,
+                                fontWeight = FontWeight.SemiBold,
                                 modifier = Modifier.padding(bottom = 8.dp)
                             )
                             stats.not_worn_30_days.forEach { item ->
@@ -170,9 +202,12 @@ fun StatisticsScreen(
                         Text(
                             "Wear Frequency (30 days)",
                             style = MaterialTheme.typography.titleLarge,
+                            fontWeight = FontWeight.SemiBold,
                             modifier = Modifier.padding(bottom = 8.dp)
                         )
                         WearFrequencyChart(data = stats.wear_frequency)
+
+                        Spacer(modifier = Modifier.height(16.dp))
                     }
 
                     PullToRefreshContainer(

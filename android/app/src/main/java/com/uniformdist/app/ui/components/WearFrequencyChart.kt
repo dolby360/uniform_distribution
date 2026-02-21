@@ -2,9 +2,11 @@ package com.uniformdist.app.ui.components
 
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.nativeCanvas
@@ -18,7 +20,11 @@ fun WearFrequencyChart(
     val barColor = MaterialTheme.colorScheme.primary
 
     if (data.isEmpty()) {
-        Card(modifier = modifier.fillMaxWidth()) {
+        Card(
+            modifier = modifier.fillMaxWidth(),
+            shape = RoundedCornerShape(12.dp),
+            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
+        ) {
             Box(
                 modifier = Modifier.padding(24.dp).fillMaxWidth(),
                 contentAlignment = androidx.compose.ui.Alignment.Center
@@ -35,7 +41,11 @@ fun WearFrequencyChart(
     val sortedEntries = data.entries.sortedBy { it.key }
     val maxValue = sortedEntries.maxOf { it.value }.coerceAtLeast(1)
 
-    Card(modifier = modifier.fillMaxWidth()) {
+    Card(
+        modifier = modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(12.dp),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
+    ) {
         Canvas(
             modifier = Modifier
                 .fillMaxWidth()
@@ -49,10 +59,11 @@ fun WearFrequencyChart(
                 val barHeight = (entry.value.toFloat() / maxValue) * chartHeight
                 val x = index * barWidth
 
-                drawRect(
+                drawRoundRect(
                     color = barColor,
                     topLeft = Offset(x + barWidth * 0.1f, chartHeight - barHeight),
-                    size = Size(barWidth * 0.8f, barHeight)
+                    size = Size(barWidth * 0.8f, barHeight),
+                    cornerRadius = CornerRadius(6f, 6f)
                 )
 
                 // Draw count label

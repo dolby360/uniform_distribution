@@ -9,14 +9,21 @@ import androidx.camera.core.ImageCaptureException
 import androidx.camera.core.Preview
 import androidx.camera.lifecycle.ProcessCameraProvider
 import androidx.camera.view.PreviewView
+import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.ArrowBack
-import androidx.compose.material.icons.filled.CameraAlt
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.Cameraswitch
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalLifecycleOwner
 import androidx.compose.ui.unit.dp
@@ -30,7 +37,7 @@ import com.google.accompanist.permissions.shouldShowRationale
 import com.uniformdist.app.ui.components.LoadingOverlay
 import java.io.File
 
-@OptIn(ExperimentalMaterial3Api::class, ExperimentalPermissionsApi::class)
+@OptIn(ExperimentalPermissionsApi::class)
 @Composable
 fun CameraScreen(
     onNavigateBack: () -> Unit,
@@ -61,30 +68,23 @@ fun CameraScreen(
         }
     }
 
-    Scaffold(
-        topBar = {
-            TopAppBar(
-                title = { Text("Take Photo") },
-                navigationIcon = {
-                    IconButton(onClick = onNavigateBack) {
-                        Icon(Icons.Default.ArrowBack, contentDescription = "Back")
-                    }
-                }
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(Color.Black)
+    ) {
+        if (cameraPermissionState.status.isGranted) {
+            CameraPreviewContent(
+                onPhotoTaken = { imageBytes -> viewModel.processOutfit(imageBytes) },
+                enabled = !uiState.isProcessing,
+                onNavigateBack = onNavigateBack
             )
-        }
-    ) { padding ->
-        Box(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(padding)
-        ) {
-            if (cameraPermissionState.status.isGranted) {
-                CameraPreviewContent(
-                    onPhotoTaken = { imageBytes -> viewModel.processOutfit(imageBytes) },
-                    enabled = !uiState.isProcessing
-                )
-            } else {
-                // Permission denied UI
+        } else {
+            // Permission denied UI
+            Surface(
+                modifier = Modifier.fillMaxSize(),
+                color = MaterialTheme.colorScheme.background
+            ) {
                 Column(
                     modifier = Modifier
                         .fillMaxSize()
@@ -94,7 +94,8 @@ fun CameraScreen(
                 ) {
                     Text(
                         "Camera permission is required to take outfit photos.",
-                        style = MaterialTheme.typography.bodyLarge
+                        style = MaterialTheme.typography.bodyLarge,
+                        color = MaterialTheme.colorScheme.onSurface
                     )
                     Spacer(modifier = Modifier.height(16.dp))
 
@@ -124,25 +125,25 @@ fun CameraScreen(
                     }
                 }
             }
+        }
 
-            // Loading overlay
-            if (uiState.isProcessing) {
-                LoadingOverlay(message = "Analyzing outfit...")
-            }
+        // Loading overlay
+        if (uiState.isProcessing) {
+            LoadingOverlay(message = "Analyzing outfit...")
+        }
 
-            // Error
-            uiState.error?.let { error ->
-                AlertDialog(
-                    onDismissRequest = { viewModel.clearResult() },
-                    title = { Text("Error") },
-                    text = { Text(error) },
-                    confirmButton = {
-                        TextButton(onClick = { viewModel.clearResult() }) {
-                            Text("OK")
-                        }
+        // Error
+        uiState.error?.let { error ->
+            AlertDialog(
+                onDismissRequest = { viewModel.clearResult() },
+                title = { Text("Error") },
+                text = { Text(error) },
+                confirmButton = {
+                    TextButton(onClick = { viewModel.clearResult() }) {
+                        Text("OK")
                     }
-                )
-            }
+                }
+            )
         }
     }
 }
@@ -150,13 +151,15 @@ fun CameraScreen(
 @Composable
 private fun CameraPreviewContent(
     onPhotoTaken: (ByteArray) -> Unit,
-    enabled: Boolean
+    enabled: Boolean,
+    onNavigateBack: () -> Unit
 ) {
     val context = LocalContext.current
     val lifecycleOwner = LocalLifecycleOwner.current
     var imageCapture by remember { mutableStateOf<ImageCapture?>(null) }
 
     Box(modifier = Modifier.fillMaxSize()) {
+        // Full-screen camera preview
         AndroidView(
             factory = { ctx ->
                 PreviewView(ctx).also { previewView ->
@@ -180,7 +183,7 @@ private fun CameraPreviewContent(
                                 capture
                             )
                         } catch (_: Exception) {
-                            // Camera binding failed — handled by empty preview
+                            // Camera binding failed
                         }
                     }, ContextCompat.getMainExecutor(ctx))
                 }
@@ -188,39 +191,99 @@ private fun CameraPreviewContent(
             modifier = Modifier.fillMaxSize()
         )
 
-        // Capture button
-        FloatingActionButton(
-            onClick = {
-                val capture = imageCapture ?: return@FloatingActionButton
-                val tempFile = File.createTempFile("outfit_", ".jpg", context.cacheDir)
-                val outputOptions = ImageCapture.OutputFileOptions.Builder(tempFile).build()
-                capture.takePicture(
-                    outputOptions,
-                    ContextCompat.getMainExecutor(context),
-                    object : ImageCapture.OnImageSavedCallback {
-                        override fun onImageSaved(output: ImageCapture.OutputFileResults) {
-                            val bytes = tempFile.readBytes()
-                            tempFile.delete()
-                            onPhotoTaken(bytes)
-                        }
-
-                        override fun onError(exception: ImageCaptureException) {
-                            tempFile.delete()
-                        }
-                    }
-                )
-            },
+        // Top overlay: back button
+        Row(
             modifier = Modifier
-                .align(Alignment.BottomCenter)
-                .padding(32.dp)
-                .size(72.dp),
-            containerColor = MaterialTheme.colorScheme.primary
+                .fillMaxWidth()
+                .statusBarsPadding()
+                .padding(horizontal = 12.dp, vertical = 8.dp),
+            horizontalArrangement = Arrangement.Start
         ) {
-            Icon(
-                Icons.Default.CameraAlt,
-                contentDescription = "Capture",
-                modifier = Modifier.size(32.dp)
-            )
+            IconButton(
+                onClick = onNavigateBack,
+                modifier = Modifier
+                    .size(40.dp)
+                    .clip(CircleShape)
+                    .background(Color.Black.copy(alpha = 0.3f))
+            ) {
+                Icon(
+                    Icons.AutoMirrored.Filled.ArrowBack,
+                    contentDescription = "Back",
+                    tint = Color.White,
+                    modifier = Modifier.size(22.dp)
+                )
+            }
+        }
+
+        // Bottom controls
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .align(Alignment.BottomCenter)
+                .navigationBarsPadding()
+                .padding(bottom = 32.dp, start = 32.dp, end = 32.dp),
+            horizontalArrangement = Arrangement.SpaceEvenly,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            // Placeholder spacer (left)
+            Box(modifier = Modifier.size(48.dp))
+
+            // Capture button — white ring with filled center
+            Box(
+                modifier = Modifier
+                    .size(72.dp)
+                    .clip(CircleShape)
+                    .border(4.dp, Color.White, CircleShape)
+                    .clickable(
+                        enabled = enabled,
+                        interactionSource = remember { MutableInteractionSource() },
+                        indication = null
+                    ) {
+                        val capture = imageCapture ?: return@clickable
+                        val tempFile = File.createTempFile("outfit_", ".jpg", context.cacheDir)
+                        val outputOptions =
+                            ImageCapture.OutputFileOptions.Builder(tempFile).build()
+                        capture.takePicture(
+                            outputOptions,
+                            ContextCompat.getMainExecutor(context),
+                            object : ImageCapture.OnImageSavedCallback {
+                                override fun onImageSaved(output: ImageCapture.OutputFileResults) {
+                                    val bytes = tempFile.readBytes()
+                                    tempFile.delete()
+                                    onPhotoTaken(bytes)
+                                }
+
+                                override fun onError(exception: ImageCaptureException) {
+                                    tempFile.delete()
+                                }
+                            }
+                        )
+                    },
+                contentAlignment = Alignment.Center
+            ) {
+                Box(
+                    modifier = Modifier
+                        .size(60.dp)
+                        .clip(CircleShape)
+                        .background(Color.White)
+                )
+            }
+
+            // Camera switch button (right)
+            IconButton(
+                onClick = { },
+                modifier = Modifier
+                    .size(48.dp)
+                    .clip(CircleShape)
+                    .background(Color.Black.copy(alpha = 0.3f))
+            ) {
+                Icon(
+                    Icons.Default.Cameraswitch,
+                    contentDescription = "Switch camera",
+                    tint = Color.White,
+                    modifier = Modifier.size(24.dp)
+                )
+            }
         }
     }
 }
