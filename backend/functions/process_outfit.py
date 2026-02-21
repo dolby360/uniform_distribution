@@ -59,7 +59,8 @@ def process_outfit_image(image_bytes: bytes) -> dict:
         # Crop item from original image
         cropped_bytes = crop_clothing_item(
             image_bytes,
-            detection['bounding_box']
+            detection['bounding_box'],
+            item_type=item_type
         )
 
         # 4. Generate embedding

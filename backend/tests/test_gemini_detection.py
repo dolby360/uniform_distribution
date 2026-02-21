@@ -126,6 +126,32 @@ class TestImageCropper(unittest.TestCase):
         self.assertGreater(cropped_img.width, 0)
         self.assertGreater(cropped_img.height, 0)
 
+    def test_shirt_has_wider_horizontal_padding(self):
+        """Shirt crop should have more horizontal padding than default."""
+        image_data = _make_test_image(1000, 1000)
+        bbox = {'x_min': 0.3, 'y_min': 0.1, 'x_max': 0.7, 'y_max': 0.5}
+
+        default_crop = Image.open(io.BytesIO(
+            crop_clothing_item(image_data, bbox, padding=0.1)))
+        shirt_crop = Image.open(io.BytesIO(
+            crop_clothing_item(image_data, bbox, item_type='shirt')))
+
+        # Shirt should be wider due to 25% x-padding vs 10% default
+        self.assertGreater(shirt_crop.width, default_crop.width)
+
+    def test_pants_has_extra_bottom_padding(self):
+        """Pants crop should have more bottom padding than default."""
+        image_data = _make_test_image(1000, 1000)
+        bbox = {'x_min': 0.3, 'y_min': 0.4, 'x_max': 0.7, 'y_max': 0.7}
+
+        default_crop = Image.open(io.BytesIO(
+            crop_clothing_item(image_data, bbox, padding=0.1)))
+        pants_crop = Image.open(io.BytesIO(
+            crop_clothing_item(image_data, bbox, item_type='pants')))
+
+        # Pants should be taller due to 25% bottom padding vs 10% default
+        self.assertGreater(pants_crop.height, default_crop.height)
+
 
 class TestDetectClothingIntegration(unittest.TestCase):
     """Test detect_clothing with mocked Gemini API."""
