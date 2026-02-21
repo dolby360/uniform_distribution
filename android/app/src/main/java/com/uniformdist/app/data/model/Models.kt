@@ -93,3 +93,32 @@ data class StatisticsResponse(
     val totals: Totals,
     val wear_frequency: Map<String, Int>
 )
+
+// --- Item Detail ---
+
+@JsonClass(generateAdapter = true)
+data class ItemImagesResponse(
+    val success: Boolean,
+    val item_id: String? = null,
+    val type: String? = null,
+    val image_urls: List<String>? = null,
+    val image_count: Int? = null,
+    val wear_count: Int? = null,
+    val last_worn: String? = null,
+    val error: String? = null
+)
+
+@JsonClass(generateAdapter = true)
+data class DeleteItemImageRequest(
+    val item_id: String,
+    val image_index: Int
+)
+
+@JsonClass(generateAdapter = true)
+data class DeleteItemImageResponse(
+    val success: Boolean,
+    val item_deleted: Boolean? = null,
+    val item_id: String? = null,
+    val remaining_images: Int? = null,
+    val error: String? = null
+)

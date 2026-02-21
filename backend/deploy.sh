@@ -66,5 +66,35 @@ gcloud functions deploy statistics \
 
 echo "statistics deployed"
 
+# Deploy get-item-images
+gcloud functions deploy get-item-images \
+  --gen2 \
+  --runtime=python311 \
+  --region=us-central1 \
+  --source=. \
+  --entry-point=get_item_images_handler \
+  --trigger-http \
+  --allow-unauthenticated \
+  --timeout=30s \
+  --memory=256MB \
+  --set-env-vars GCP_PROJECT_ID=$GCP_PROJECT_ID,STORAGE_BUCKET=$STORAGE_BUCKET
+
+echo "get-item-images deployed"
+
+# Deploy delete-item-image
+gcloud functions deploy delete-item-image \
+  --gen2 \
+  --runtime=python311 \
+  --region=us-central1 \
+  --source=. \
+  --entry-point=delete_item_image_handler \
+  --trigger-http \
+  --allow-unauthenticated \
+  --timeout=30s \
+  --memory=256MB \
+  --set-env-vars GCP_PROJECT_ID=$GCP_PROJECT_ID,STORAGE_BUCKET=$STORAGE_BUCKET
+
+echo "delete-item-image deployed"
+
 echo ""
 echo "All functions deployed!"

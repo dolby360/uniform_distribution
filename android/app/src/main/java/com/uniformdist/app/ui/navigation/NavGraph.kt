@@ -9,6 +9,7 @@ import androidx.navigation.navArgument
 import com.uniformdist.app.ui.screens.camera.CameraScreen
 import com.uniformdist.app.ui.screens.confirmation.MatchConfirmationScreen
 import com.uniformdist.app.ui.screens.home.HomeScreen
+import com.uniformdist.app.ui.screens.itemdetail.ItemDetailScreen
 import com.uniformdist.app.ui.screens.statistics.StatisticsScreen
 
 @Composable
@@ -40,7 +41,19 @@ fun NavGraph(navController: NavHostController) {
         }
         composable(Screen.Statistics.route) {
             StatisticsScreen(
-                onBack = { navController.popBackStack() }
+                onBack = { navController.popBackStack() },
+                onItemClick = { itemId ->
+                    navController.navigate(Screen.ItemDetail.createRoute(itemId))
+                }
+            )
+        }
+        composable(
+            route = Screen.ItemDetail.route,
+            arguments = listOf(navArgument("itemId") { type = NavType.StringType })
+        ) {
+            ItemDetailScreen(
+                onBack = { navController.popBackStack() },
+                onItemDeleted = { navController.popBackStack() }
             )
         }
     }

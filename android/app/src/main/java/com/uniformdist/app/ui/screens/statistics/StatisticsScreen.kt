@@ -23,6 +23,7 @@ import com.uniformdist.app.ui.components.WearFrequencyChart
 @Composable
 fun StatisticsScreen(
     onBack: () -> Unit,
+    onItemClick: (String) -> Unit,
     viewModel: StatisticsViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsState()
@@ -161,7 +162,10 @@ fun StatisticsScreen(
                             )
                         } else {
                             stats.most_worn.forEach { item ->
-                                ItemStatCard(item = item)
+                                ItemStatCard(
+                                    item = item,
+                                    onClick = { onItemClick(item.id) }
+                                )
                                 Spacer(modifier = Modifier.height(8.dp))
                             }
                         }
@@ -182,7 +186,10 @@ fun StatisticsScreen(
                             )
                         } else {
                             stats.least_worn.forEach { item ->
-                                ItemStatCard(item = item)
+                                ItemStatCard(
+                                    item = item,
+                                    onClick = { onItemClick(item.id) }
+                                )
                                 Spacer(modifier = Modifier.height(8.dp))
                             }
                         }
@@ -197,7 +204,11 @@ fun StatisticsScreen(
                                 modifier = Modifier.padding(bottom = 8.dp)
                             )
                             stats.not_worn_30_days.forEach { item ->
-                                ItemStatCard(item = item, showDaysSince = true)
+                                ItemStatCard(
+                                    item = item,
+                                    showDaysSince = true,
+                                    onClick = { onItemClick(item.id) }
+                                )
                                 Spacer(modifier = Modifier.height(8.dp))
                             }
                         }

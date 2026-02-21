@@ -12,12 +12,15 @@ import androidx.compose.ui.unit.dp
 import coil.compose.AsyncImage
 import com.uniformdist.app.data.model.ItemStats
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ItemStatCard(
     item: ItemStats,
-    showDaysSince: Boolean = false
+    showDaysSince: Boolean = false,
+    onClick: (() -> Unit)? = null
 ) {
     Card(
+        onClick = { onClick?.invoke() },
         modifier = Modifier.fillMaxWidth(),
         elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
         colors = CardDefaults.cardColors(

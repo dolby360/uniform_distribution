@@ -5,6 +5,7 @@ from process_outfit import process_outfit_image
 from confirm_match import confirm_match
 from add_new_item import add_new_item
 from statistics import get_statistics
+from item_detail import get_item_images, delete_item_image
 
 
 @functions_framework.http
@@ -144,3 +145,63 @@ def statistics_handler(request):
 
     except Exception as e:
         return jsonify({'error': str(e)}), 500, headers
+
+
+@functions_framework.http
+def get_item_images_handler(request):
+    """
+    HTTP Cloud Function: Get all images for a clothing item
+
+    GET /get-item-images?item_id=xxx
+    """
+    if request.method == 'OPTIONS':
+        headers = {
+            'Access-Control-Allow-Origin': '*',
+            'Access-Control-Allow-Methods': 'GET',
+            'Access-Control-Allow-Headers': 'Content-Type',
+        }
+        return ('', 204, headers)
+
+    headers = {'Access-Control-Allow-Origin': '*'}
+
+    try:
+        item_id = request.args.get('item_id')
+        if not item_id:
+            return jsonify({'success': False, 'error': 'Missing item_id'}), 400, headers
+
+        result = get_item_images(item_id)
+        status = 200 if result['success'] else 404
+        return jsonify(result), status, headers
+
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500, headers
+
+
+@functions_framework.http
+def delete_item_image_handler(request):
+    """
+    HTTP Cloud Function: Delete a specific image from a clothing item
+
+    POST /delete-item-image
+    Body: { "item_id": "xxx", "image_index": 0 }
+    """
+    if request.method == 'OPTIONS':
+        headers = {
+            'Access-Control-Allow-Origin': '*',
+            'Access-Control-Allow-Methods': 'POST',
+            'Access-Control-Allow-Headers': 'Content-Type',
+        }
+        return ('', 204, headers)
+
+    headers = {'Access-Control-Allow-Origin': '*'}
+
+    try:
+        data = request.get_json()
+        if not data or 'item_id' not in data or 'image_index' not in data:
+            return jsonify({'success': False, 'error': 'Missing required fields'}), 400, headers
+
+        result = delete_item_image(data['item_id'], data['image_index'])
+        return jsonify(result), 200, headers
+
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500, headers
