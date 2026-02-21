@@ -19,3 +19,15 @@ expo-go.apk
 architecture_plan/private-gcp-config.md
 backend/service-account-key.json
 backend/.env
+
+# Android
+android/.gradle/
+android/build/
+android/app/build/
+android/local.properties
+android/.idea/
+android/*.iml
+android/app/*.iml
+android/captures/
+android/.externalNativeBuild/
+android/.cxx/
