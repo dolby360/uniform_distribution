@@ -25,3 +25,8 @@ variable "gcloud_access_token" {
   type        = string
   sensitive   = true
 }
+
+variable "alert_email" {
+  description = "Email address for unauthorized access alerts"
+  type        = string
+}

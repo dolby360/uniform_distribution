@@ -2,8 +2,10 @@ package com.uniformdist.app.di
 
 import com.squareup.moshi.Moshi
 import com.squareup.moshi.kotlin.reflect.KotlinJsonAdapterFactory
+import com.uniformdist.app.BuildConfig
 import com.uniformdist.app.data.api.ApiConfig
 import com.uniformdist.app.data.api.UniformDistApi
+import okhttp3.Interceptor
 import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
@@ -31,6 +33,12 @@ object NetworkModule {
         .connectTimeout(ApiConfig.TIMEOUT_SECONDS, TimeUnit.SECONDS)
         .readTimeout(ApiConfig.TIMEOUT_SECONDS, TimeUnit.SECONDS)
         .writeTimeout(ApiConfig.TIMEOUT_SECONDS, TimeUnit.SECONDS)
+        .addInterceptor(Interceptor { chain ->
+            val request = chain.request().newBuilder()
+                .addHeader("X-API-Key", BuildConfig.API_KEY)
+                .build()
+            chain.proceed(request)
+        })
         .addInterceptor(HttpLoggingInterceptor().apply {
             level = HttpLoggingInterceptor.Level.BASIC
         })

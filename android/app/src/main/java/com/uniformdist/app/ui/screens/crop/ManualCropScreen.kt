@@ -1,6 +1,7 @@
 package com.uniformdist.app.ui.screens.crop
 
 import android.graphics.BitmapFactory
+import android.graphics.Matrix
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.*
 import androidx.compose.material.icons.Icons
@@ -19,6 +20,8 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.uniformdist.app.ui.components.CropOverlay
 import com.uniformdist.app.ui.components.LoadingOverlay
+import androidx.exifinterface.media.ExifInterface
+import java.io.ByteArrayInputStream
 import java.io.File
 import java.net.URLDecoder
 
@@ -37,7 +40,28 @@ fun ManualCropScreen(
         File(decodedPath).readBytes()
     }
     val bitmap = remember(imageBytes) {
-        BitmapFactory.decodeByteArray(imageBytes, 0, imageBytes.size)
+        val raw = BitmapFactory.decodeByteArray(imageBytes, 0, imageBytes.size)
+        val exif = ExifInterface(ByteArrayInputStream(imageBytes))
+        val orientation = exif.getAttributeInt(
+            ExifInterface.TAG_ORIENTATION,
+            ExifInterface.ORIENTATION_NORMAL
+        )
+        val degrees = when (orientation) {
+            ExifInterface.ORIENTATION_ROTATE_90 -> 90f
+            ExifInterface.ORIENTATION_ROTATE_180 -> 180f
+            ExifInterface.ORIENTATION_ROTATE_270 -> 270f
+            else -> 0f
+        }
+        if (degrees != 0f) {
+            val matrix = Matrix().apply { postRotate(degrees) }
+            val rotated = android.graphics.Bitmap.createBitmap(
+                raw, 0, 0, raw.width, raw.height, matrix, true
+            )
+            raw.recycle()
+            rotated
+        } else {
+            raw
+        }
     }
 
     var imageDisplaySize by remember { mutableStateOf(IntSize.Zero) }

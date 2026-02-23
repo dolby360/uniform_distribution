@@ -1,6 +1,7 @@
 import functions_framework
 from flask import jsonify
 import base64
+from auth import require_api_key
 from process_outfit import process_outfit_image
 from process_manual_crop import process_manual_crop
 from confirm_match import confirm_match
@@ -10,6 +11,7 @@ from item_detail import get_item_images, delete_item_image
 
 
 @functions_framework.http
+@require_api_key
 def process_outfit(request):
     """
     HTTP Cloud Function: Process outfit photo
@@ -22,7 +24,7 @@ def process_outfit(request):
         headers = {
             'Access-Control-Allow-Origin': '*',
             'Access-Control-Allow-Methods': 'POST',
-            'Access-Control-Allow-Headers': 'Content-Type',
+            'Access-Control-Allow-Headers': 'Content-Type, X-API-Key',
         }
         return ('', 204, headers)
 
@@ -48,6 +50,7 @@ def process_outfit(request):
 
 
 @functions_framework.http
+@require_api_key
 def process_manual_crop_handler(request):
     """
     HTTP Cloud Function: Process manually-cropped outfit images
@@ -63,7 +66,7 @@ def process_manual_crop_handler(request):
         headers = {
             'Access-Control-Allow-Origin': '*',
             'Access-Control-Allow-Methods': 'POST',
-            'Access-Control-Allow-Headers': 'Content-Type',
+            'Access-Control-Allow-Headers': 'Content-Type, X-API-Key',
         }
         return ('', 204, headers)
 
@@ -93,6 +96,7 @@ def process_manual_crop_handler(request):
 
 
 @functions_framework.http
+@require_api_key
 def confirm_match_handler(request):
     """
     HTTP Cloud Function: Confirm match and log wear event
@@ -104,7 +108,7 @@ def confirm_match_handler(request):
         headers = {
             'Access-Control-Allow-Origin': '*',
             'Access-Control-Allow-Methods': 'POST',
-            'Access-Control-Allow-Headers': 'Content-Type',
+            'Access-Control-Allow-Headers': 'Content-Type, X-API-Key',
         }
         return ('', 204, headers)
 
@@ -131,6 +135,7 @@ def confirm_match_handler(request):
 
 
 @functions_framework.http
+@require_api_key
 def add_new_item_handler(request):
     """
     HTTP Cloud Function: Add new clothing item
@@ -142,7 +147,7 @@ def add_new_item_handler(request):
         headers = {
             'Access-Control-Allow-Origin': '*',
             'Access-Control-Allow-Methods': 'POST',
-            'Access-Control-Allow-Headers': 'Content-Type',
+            'Access-Control-Allow-Headers': 'Content-Type, X-API-Key',
         }
         return ('', 204, headers)
 
@@ -169,6 +174,7 @@ def add_new_item_handler(request):
 
 
 @functions_framework.http
+@require_api_key
 def statistics_handler(request):
     """
     HTTP Cloud Function: Get wardrobe statistics
@@ -179,7 +185,7 @@ def statistics_handler(request):
         headers = {
             'Access-Control-Allow-Origin': '*',
             'Access-Control-Allow-Methods': 'GET',
-            'Access-Control-Allow-Headers': 'Content-Type',
+            'Access-Control-Allow-Headers': 'Content-Type, X-API-Key',
         }
         return ('', 204, headers)
 
@@ -194,6 +200,7 @@ def statistics_handler(request):
 
 
 @functions_framework.http
+@require_api_key
 def get_item_images_handler(request):
     """
     HTTP Cloud Function: Get all images for a clothing item
@@ -204,7 +211,7 @@ def get_item_images_handler(request):
         headers = {
             'Access-Control-Allow-Origin': '*',
             'Access-Control-Allow-Methods': 'GET',
-            'Access-Control-Allow-Headers': 'Content-Type',
+            'Access-Control-Allow-Headers': 'Content-Type, X-API-Key',
         }
         return ('', 204, headers)
 
@@ -224,6 +231,7 @@ def get_item_images_handler(request):
 
 
 @functions_framework.http
+@require_api_key
 def delete_item_image_handler(request):
     """
     HTTP Cloud Function: Delete a specific image from a clothing item
@@ -235,7 +243,7 @@ def delete_item_image_handler(request):
         headers = {
             'Access-Control-Allow-Origin': '*',
             'Access-Control-Allow-Methods': 'POST',
-            'Access-Control-Allow-Headers': 'Content-Type',
+            'Access-Control-Allow-Headers': 'Content-Type, X-API-Key',
         }
         return ('', 204, headers)
 

@@ -32,25 +32,27 @@ fun CropOverlay(
     onCropRectChanged: (Rect) -> Unit,
     modifier: Modifier = Modifier
 ) {
+    val currentCropRect by rememberUpdatedState(cropRect)
+    val currentOnCropRectChanged by rememberUpdatedState(onCropRectChanged)
     var activeHandle by remember { mutableStateOf(DragHandle.NONE) }
 
     Canvas(
         modifier = modifier
             .fillMaxSize()
-            .pointerInput(cropRect) {
+            .pointerInput(Unit) {
                 detectDragGestures(
                     onDragStart = { offset ->
-                        activeHandle = detectHandle(offset, cropRect)
+                        activeHandle = detectHandle(offset, currentCropRect)
                     },
                     onDragEnd = { activeHandle = DragHandle.NONE },
                     onDragCancel = { activeHandle = DragHandle.NONE },
                     onDrag = { change, dragAmount ->
                         change.consume()
                         val newRect = applyDrag(
-                            cropRect, activeHandle, dragAmount,
+                            currentCropRect, activeHandle, dragAmount,
                             size.width.toFloat(), size.height.toFloat()
                         )
-                        onCropRectChanged(newRect)
+                        currentOnCropRectChanged(newRect)
                     }
                 )
             }

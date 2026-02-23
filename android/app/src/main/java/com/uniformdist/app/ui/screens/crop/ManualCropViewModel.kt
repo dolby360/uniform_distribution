@@ -2,6 +2,7 @@ package com.uniformdist.app.ui.screens.crop
 
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
+import android.graphics.Matrix
 import android.util.Base64
 import androidx.compose.ui.geometry.Rect
 import androidx.lifecycle.ViewModel
@@ -13,6 +14,8 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
+import androidx.exifinterface.media.ExifInterface
+import java.io.ByteArrayInputStream
 import java.io.ByteArrayOutputStream
 import java.net.SocketTimeoutException
 import java.net.UnknownHostException
@@ -66,7 +69,7 @@ class ManualCropViewModel @Inject constructor(
         viewModelScope.launch {
             _uiState.value = _uiState.value.copy(isProcessing = true, error = null)
             try {
-                val bitmap = BitmapFactory.decodeByteArray(imageBytes, 0, imageBytes.size)
+                val bitmap = decodeWithExifRotation(imageBytes)
                 val originalBase64 = Base64.encodeToString(imageBytes, Base64.NO_WRAP)
 
                 val shirtBase64 = state.shirtCropRect?.let { rect ->
@@ -125,6 +128,25 @@ class ManualCropViewModel @Inject constructor(
      * @param displayWidth Width of the display area the rect was drawn on
      * @param displayHeight Height of the display area the rect was drawn on
      */
+    private fun decodeWithExifRotation(imageBytes: ByteArray): Bitmap {
+        val raw = BitmapFactory.decodeByteArray(imageBytes, 0, imageBytes.size)
+        val exif = ExifInterface(ByteArrayInputStream(imageBytes))
+        val orientation = exif.getAttributeInt(
+            ExifInterface.TAG_ORIENTATION,
+            ExifInterface.ORIENTATION_NORMAL
+        )
+        val degrees = when (orientation) {
+            ExifInterface.ORIENTATION_ROTATE_90 -> 90f
+            ExifInterface.ORIENTATION_ROTATE_180 -> 180f
+            ExifInterface.ORIENTATION_ROTATE_270 -> 270f
+            else -> return raw
+        }
+        val matrix = Matrix().apply { postRotate(degrees) }
+        val rotated = Bitmap.createBitmap(raw, 0, 0, raw.width, raw.height, matrix, true)
+        raw.recycle()
+        return rotated
+    }
+
     private fun cropAndEncode(
         bitmap: Bitmap, rect: Rect,
         displayWidth: Int, displayHeight: Int
