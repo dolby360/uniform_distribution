@@ -49,4 +49,9 @@ interface UniformDistApi {
         @Url url: String = ApiConfig.DELETE_ITEM_IMAGE_URL,
         @Body request: DeleteItemImageRequest
     ): DeleteItemImageResponse
+
+    @GET
+    suspend fun listItems(
+        @Url url: String = ApiConfig.LIST_ITEMS_URL
+    ): ListItemsResponse
 }

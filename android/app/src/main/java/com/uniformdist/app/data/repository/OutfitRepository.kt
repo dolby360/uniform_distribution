@@ -33,7 +33,8 @@ class OutfitRepository @Inject constructor(
         originalPhotoUrl: String,
         similarityScore: Double? = null,
         embedding: List<Double>? = null,
-        croppedUrl: String? = null
+        croppedUrl: String? = null,
+        wornAt: String? = null
     ): ConfirmMatchResponse {
         return api.confirmMatch(
             request = ConfirmMatchRequest(
@@ -42,9 +43,14 @@ class OutfitRepository @Inject constructor(
                 original_photo_url = originalPhotoUrl,
                 similarity_score = similarityScore,
                 embedding = embedding,
-                cropped_url = croppedUrl
+                cropped_url = croppedUrl,
+                worn_at = wornAt
             )
         )
+    }
+
+    suspend fun listItems(): ListItemsResponse {
+        return api.listItems()
     }
 
     suspend fun addNewItem(

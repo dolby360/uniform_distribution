@@ -46,7 +46,8 @@ data class ConfirmMatchRequest(
     val original_photo_url: String,
     val similarity_score: Double? = null,
     val embedding: List<Double>? = null,
-    val cropped_url: String? = null
+    val cropped_url: String? = null,
+    val worn_at: String? = null
 )
 
 @JsonClass(generateAdapter = true)
@@ -130,4 +131,21 @@ data class DeleteItemImageResponse(
     val item_id: String? = null,
     val remaining_images: Int? = null,
     val error: String? = null
+)
+
+// --- List Items ---
+
+@JsonClass(generateAdapter = true)
+data class ItemListEntry(
+    val id: String,
+    val image_url: String,
+    val wear_count: Int,
+    val last_worn: String?,
+    val days_since_worn: Int?
+)
+
+@JsonClass(generateAdapter = true)
+data class ListItemsResponse(
+    val shirts: List<ItemListEntry>,
+    val pants: List<ItemListEntry>
 )

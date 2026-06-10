@@ -10,7 +10,7 @@
 # Functions (by number):
 #   1: process-outfit    2: confirm-match      3: add-new-item
 #   4: statistics        5: get-item-images    6: delete-item-image
-#   7: process-manual-crop
+#   7: process-manual-crop                     8: list-items
 
 set -e
 
@@ -62,7 +62,7 @@ should_deploy() {
   return 1
 }
 
-ALL_FUNCTIONS=(process-outfit confirm-match add-new-item statistics get-item-images delete-item-image process-manual-crop)
+ALL_FUNCTIONS=(process-outfit confirm-match add-new-item statistics get-item-images delete-item-image process-manual-crop list-items)
 
 # Collect target functions from arguments, expanding N+ ranges
 TARGETS=()
@@ -203,6 +203,20 @@ should_deploy process-manual-crop && deploy process-manual-crop \
   --max-instances=1 \
   --concurrency=1 \
   --set-env-vars GCP_PROJECT_ID=$GCP_PROJECT_ID,GEMINI_API_KEY=$GEMINI_API_KEY,STORAGE_BUCKET=$STORAGE_BUCKET,GCP_REGION=$GCP_REGION,API_KEY=$API_KEY
+
+should_deploy list-items && deploy list-items \
+  --gen2 \
+  --runtime=python311 \
+  --region=us-central1 \
+  --source="$BACKEND_DIR" \
+  --entry-point=list_items_handler \
+  --trigger-http \
+  --allow-unauthenticated \
+  --timeout=30s \
+  --memory=256MB \
+  --max-instances=1 \
+  --concurrency=1 \
+  --set-env-vars GCP_PROJECT_ID=$GCP_PROJECT_ID,STORAGE_BUCKET=$STORAGE_BUCKET,API_KEY=$API_KEY
 
 echo ""
 echo "Done! $DEPLOYED function(s) deployed."

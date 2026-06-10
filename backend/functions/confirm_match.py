@@ -2,6 +2,8 @@ import sys
 import os
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
+from datetime import datetime
+from typing import Optional
 from google.cloud import firestore
 
 
@@ -10,17 +12,18 @@ MAX_SAMPLES = 10
 
 def confirm_match(item_id: str, item_type: str, original_photo_url: str,
                   similarity_score: float = None, new_embedding: list = None,
-                  cropped_url: str = None) -> dict:
+                  cropped_url: str = None, worn_at: Optional[datetime] = None) -> dict:
     """
     Confirm match, log wear event, and optionally add new embedding sample.
 
     Args:
         item_id: Clothing item ID
         item_type: 'shirt' or 'pants'
-        original_photo_url: gs:// URL to original photo
+        original_photo_url: gs:// URL to original photo (may be empty for manual logs)
         similarity_score: Match confidence (optional)
         new_embedding: New 1408-dim embedding to add as sample (optional)
         cropped_url: gs:// URL to new cropped image (optional)
+        worn_at: Explicit wear timestamp (optional). When None, uses server time.
 
     Returns:
         Dict with updated item stats
@@ -28,16 +31,23 @@ def confirm_match(item_id: str, item_type: str, original_photo_url: str,
     db = firestore.Client(project=os.getenv('GCP_PROJECT_ID'))
 
     item_ref = db.collection('clothing_items').document(item_id)
+    item_data = item_ref.get().to_dict()
 
-    # Update wear stats
     update_data = {
         'wear_count': firestore.Increment(1),
-        'last_worn': firestore.SERVER_TIMESTAMP
     }
+
+    # last_worn semantics: only advance forward, never regress.
+    # Backdating yesterday's wear shouldn't overwrite today's last_worn.
+    if worn_at is None:
+        update_data['last_worn'] = firestore.SERVER_TIMESTAMP
+    else:
+        existing_last_worn = item_data.get('last_worn')
+        if existing_last_worn is None or worn_at > existing_last_worn:
+            update_data['last_worn'] = worn_at
 
     # Append new sample if provided and under cap
     if new_embedding and cropped_url:
-        item_data = item_ref.get().to_dict()
         embeddings = item_data['embeddings']
         if len(embeddings) < MAX_SAMPLES:
             next_key = str(len(embeddings))
@@ -53,7 +63,7 @@ def confirm_match(item_id: str, item_type: str, original_photo_url: str,
     wear_log_data = {
         'item_id': item_id,
         'item_type': item_type,
-        'worn_at': firestore.SERVER_TIMESTAMP,
+        'worn_at': worn_at if worn_at is not None else firestore.SERVER_TIMESTAMP,
         'confidence_score': similarity_score or 1.0,
         'original_image_url': original_photo_url
     }

@@ -1,6 +1,7 @@
 import functions_framework
 from flask import jsonify
 import base64
+from datetime import datetime
 from auth import require_api_key
 
 
@@ -69,12 +70,18 @@ def confirm_match_handler(request):
         if not data or 'item_id' not in data or 'item_type' not in data or 'original_photo_url' not in data:
             return jsonify({'success': False, 'error': 'Missing required fields'}), 400, headers
 
+        worn_at_raw = data.get('worn_at')
+        worn_at = datetime.fromisoformat(worn_at_raw) if worn_at_raw else None
+
         from functions.confirm_match import confirm_match
         result = confirm_match(
             data['item_id'],
             data['item_type'],
             data['original_photo_url'],
-            data.get('similarity_score')
+            data.get('similarity_score'),
+            data.get('embedding'),
+            data.get('cropped_url'),
+            worn_at=worn_at,
         )
         return jsonify(result), 200, headers
 
@@ -258,3 +265,30 @@ def process_manual_crop_handler(request):
             'success': False,
             'error': str(e)
         }), 500, headers
+
+
+@functions_framework.http
+@require_api_key
+def list_items_handler(request):
+    """
+    HTTP Cloud Function: Return all clothing items grouped by type.
+
+    GET /list-items
+    """
+    if request.method == 'OPTIONS':
+        headers = {
+            'Access-Control-Allow-Origin': '*',
+            'Access-Control-Allow-Methods': 'GET',
+            'Access-Control-Allow-Headers': 'Content-Type, X-API-Key',
+        }
+        return ('', 204, headers)
+
+    headers = {'Access-Control-Allow-Origin': '*'}
+
+    try:
+        from functions.list_items import list_items
+        result = list_items()
+        return jsonify(result), 200, headers
+
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500, headers
