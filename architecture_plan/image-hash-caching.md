@@ -72,4 +72,4 @@ The `list-items` Cloud Function must be redeployed for `image_hash` to appear.
 
 ## Related commit hash(es)
 
-_(pending commit)_
+- `cb1314a` — Add hash-based image caching with stale-while-revalidate sync

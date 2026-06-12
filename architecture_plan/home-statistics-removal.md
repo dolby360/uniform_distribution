@@ -50,4 +50,4 @@ composables) are deleted. `ItemsList` is the `NavHost` start destination.
 
 ## Related commit hash(es)
 
-_(pending commit)_
+- `f22316b` — Remove Home and Statistics screens, make wardrobe grid the main screen
