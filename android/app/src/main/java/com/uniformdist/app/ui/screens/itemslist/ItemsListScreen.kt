@@ -1,15 +1,20 @@
 package com.uniformdist.app.ui.screens.itemslist
 
+import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
+import androidx.compose.foundation.pager.HorizontalPager
+import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.AddAPhoto
+import androidx.compose.material.icons.filled.Check
+import androidx.compose.material.icons.filled.CloudOff
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -22,11 +27,12 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import coil.compose.AsyncImage
 import com.uniformdist.app.data.model.ItemListEntry
+import kotlinx.coroutines.launch
 
-@OptIn(ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalFoundationApi::class)
 @Composable
 fun ItemsListScreen(
-    onBack: () -> Unit,
+    onAddClothes: () -> Unit,
     onItemDetail: (String) -> Unit,
     viewModel: ItemsListViewModel = hiltViewModel(),
 ) {
@@ -61,15 +67,10 @@ fun ItemsListScreen(
             CenterAlignedTopAppBar(
                 title = {
                     Text(
-                        "Log Wear Manually",
+                        "My Wardrobe",
                         style = MaterialTheme.typography.headlineSmall,
                         fontWeight = FontWeight.Medium,
                     )
-                },
-                navigationIcon = {
-                    IconButton(onClick = onBack) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
-                    }
                 },
                 colors = TopAppBarDefaults.centerAlignedTopAppBarColors(
                     containerColor = MaterialTheme.colorScheme.surface,
@@ -77,82 +78,149 @@ fun ItemsListScreen(
                 ),
             )
         },
+        floatingActionButton = {
+            SmallFloatingActionButton(
+                onClick = onAddClothes,
+                containerColor = MaterialTheme.colorScheme.primary,
+                contentColor = MaterialTheme.colorScheme.onPrimary,
+            ) {
+                Icon(Icons.Default.AddAPhoto, contentDescription = "Add new clothes")
+            }
+        },
         snackbarHost = { SnackbarHost(snackbarHostState) },
         containerColor = MaterialTheme.colorScheme.background,
     ) { padding ->
-        when {
-            uiState.isLoading -> {
-                Box(
-                    modifier = Modifier.fillMaxSize().padding(padding),
-                    contentAlignment = Alignment.Center,
-                ) {
-                    CircularProgressIndicator(color = MaterialTheme.colorScheme.primary)
-                }
-            }
-
-            uiState.error != null && uiState.shirts.isEmpty() && uiState.pants.isEmpty() -> {
-                Box(
-                    modifier = Modifier.fillMaxSize().padding(padding),
-                    contentAlignment = Alignment.Center,
-                ) {
-                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                        Text(
-                            "Couldn't load your wardrobe",
-                            style = MaterialTheme.typography.titleMedium,
-                        )
-                        Text(
-                            uiState.error ?: "",
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.error,
-                        )
-                        Spacer(modifier = Modifier.height(16.dp))
-                        Button(onClick = { viewModel.loadItems() }) { Text("Retry") }
+        Box(modifier = Modifier.fillMaxSize().padding(padding)) {
+            when {
+                uiState.isLoading -> {
+                    Box(
+                        modifier = Modifier.fillMaxSize(),
+                        contentAlignment = Alignment.Center,
+                    ) {
+                        CircularProgressIndicator(color = MaterialTheme.colorScheme.primary)
                     }
                 }
-            }
 
-            else -> {
-                Column(modifier = Modifier.fillMaxSize().padding(padding)) {
-                    TabRow(selectedTabIndex = uiState.selectedTab.ordinal) {
-                        ItemTypeTab.entries.forEach { tab ->
-                            val count = if (tab == ItemTypeTab.SHIRTS) uiState.shirts.size else uiState.pants.size
-                            Tab(
-                                selected = uiState.selectedTab == tab,
-                                onClick = { viewModel.selectTab(tab) },
-                                text = { Text("${tab.label} ($count)") },
-                            )
-                        }
-                    }
-
-                    val items = if (uiState.selectedTab == ItemTypeTab.SHIRTS) uiState.shirts else uiState.pants
-
-                    if (items.isEmpty()) {
-                        Box(
-                            modifier = Modifier.fillMaxSize(),
-                            contentAlignment = Alignment.Center,
-                        ) {
+                uiState.error != null && uiState.shirts.isEmpty() && uiState.pants.isEmpty() -> {
+                    Box(
+                        modifier = Modifier.fillMaxSize(),
+                        contentAlignment = Alignment.Center,
+                    ) {
+                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
                             Text(
-                                "No ${uiState.selectedTab.label.lowercase()} yet",
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                "Couldn't load your wardrobe",
+                                style = MaterialTheme.typography.titleMedium,
                             )
+                            Text(
+                                uiState.error ?: "",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.error,
+                            )
+                            Spacer(modifier = Modifier.height(16.dp))
+                            Button(onClick = { viewModel.loadItems() }) { Text("Retry") }
                         }
-                    } else {
-                        LazyVerticalGrid(
-                            columns = GridCells.Fixed(2),
-                            contentPadding = PaddingValues(12.dp),
-                            verticalArrangement = Arrangement.spacedBy(12.dp),
-                            horizontalArrangement = Arrangement.spacedBy(12.dp),
-                        ) {
-                            items(items, key = { it.id }) { item ->
-                                ItemCell(
-                                    item = item,
-                                    onTap = { viewModel.requestMarkWorn(item) },
-                                    onInfoTap = { onItemDetail(item.id) },
+                    }
+                }
+
+                else -> {
+                    val pagerState = rememberPagerState(
+                        initialPage = uiState.selectedTab.ordinal,
+                        pageCount = { ItemTypeTab.entries.size },
+                    )
+                    val scope = rememberCoroutineScope()
+
+                    // Keep the ViewModel's selected tab in sync with the pager
+                    // (so swiping updates which type a logged wear belongs to).
+                    LaunchedEffect(pagerState.currentPage) {
+                        viewModel.selectTab(ItemTypeTab.entries[pagerState.currentPage])
+                    }
+
+                    Column(modifier = Modifier.fillMaxSize()) {
+                        TabRow(selectedTabIndex = pagerState.currentPage) {
+                            ItemTypeTab.entries.forEach { tab ->
+                                val count = if (tab == ItemTypeTab.SHIRTS) uiState.shirts.size else uiState.pants.size
+                                Tab(
+                                    selected = pagerState.currentPage == tab.ordinal,
+                                    onClick = { scope.launch { pagerState.animateScrollToPage(tab.ordinal) } },
+                                    text = { Text("${tab.label} ($count)") },
                                 )
+                            }
+                        }
+
+                        HorizontalPager(
+                            state = pagerState,
+                            modifier = Modifier.fillMaxSize(),
+                        ) { page ->
+                            val tab = ItemTypeTab.entries[page]
+                            val items = if (tab == ItemTypeTab.SHIRTS) uiState.shirts else uiState.pants
+
+                            if (items.isEmpty()) {
+                                Box(
+                                    modifier = Modifier.fillMaxSize(),
+                                    contentAlignment = Alignment.Center,
+                                ) {
+                                    Text(
+                                        "No ${tab.label.lowercase()} yet",
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    )
+                                }
+                            } else {
+                                LazyVerticalGrid(
+                                    columns = GridCells.Fixed(2),
+                                    contentPadding = PaddingValues(12.dp),
+                                    verticalArrangement = Arrangement.spacedBy(12.dp),
+                                    horizontalArrangement = Arrangement.spacedBy(12.dp),
+                                ) {
+                                    items(items, key = { it.id }) { item ->
+                                        ItemCell(
+                                            item = item,
+                                            imageModel = viewModel.buildImageRequest(item),
+                                            onTap = { viewModel.requestMarkWorn(item) },
+                                            onInfoTap = { onItemDetail(item.id) },
+                                        )
+                                    }
+                                }
                             }
                         }
                     }
                 }
+            }
+
+            SyncIndicator(
+                status = uiState.syncStatus,
+                modifier = Modifier.align(Alignment.BottomStart).padding(16.dp),
+            )
+        }
+    }
+}
+
+@Composable
+private fun SyncIndicator(status: SyncStatus, modifier: Modifier = Modifier) {
+    Surface(
+        modifier = modifier,
+        shape = CircleShape,
+        color = MaterialTheme.colorScheme.surface.copy(alpha = 0.9f),
+        shadowElevation = 2.dp,
+    ) {
+        Box(modifier = Modifier.size(36.dp), contentAlignment = Alignment.Center) {
+            when (status) {
+                SyncStatus.SYNCING -> CircularProgressIndicator(
+                    modifier = Modifier.size(18.dp),
+                    strokeWidth = 2.dp,
+                    color = MaterialTheme.colorScheme.primary,
+                )
+                SyncStatus.SYNCED -> Icon(
+                    Icons.Default.Check,
+                    contentDescription = "Up to date",
+                    tint = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier.size(20.dp),
+                )
+                SyncStatus.FAILED -> Icon(
+                    Icons.Default.CloudOff,
+                    contentDescription = "Sync failed",
+                    tint = MaterialTheme.colorScheme.error,
+                    modifier = Modifier.size(20.dp),
+                )
             }
         }
     }
@@ -161,6 +229,7 @@ fun ItemsListScreen(
 @Composable
 private fun ItemCell(
     item: ItemListEntry,
+    imageModel: Any,
     onTap: () -> Unit,
     onInfoTap: () -> Unit,
 ) {
@@ -172,7 +241,7 @@ private fun ItemCell(
         Column {
             Box {
                 AsyncImage(
-                    model = item.image_url,
+                    model = imageModel,
                     contentDescription = null,
                     modifier = Modifier
                         .fillMaxWidth()

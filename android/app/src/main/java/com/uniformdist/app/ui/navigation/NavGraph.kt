@@ -9,19 +9,18 @@ import androidx.navigation.navArgument
 import com.uniformdist.app.ui.screens.camera.CameraScreen
 import com.uniformdist.app.ui.screens.confirmation.MatchConfirmationScreen
 import com.uniformdist.app.ui.screens.crop.ManualCropScreen
-import com.uniformdist.app.ui.screens.home.HomeScreen
 import com.uniformdist.app.ui.screens.itemdetail.ItemDetailScreen
 import com.uniformdist.app.ui.screens.itemslist.ItemsListScreen
-import com.uniformdist.app.ui.screens.statistics.StatisticsScreen
 
 @Composable
 fun NavGraph(navController: NavHostController) {
-    NavHost(navController = navController, startDestination = Screen.Home.route) {
-        composable(Screen.Home.route) {
-            HomeScreen(
-                onTakePhoto = { navController.navigate(Screen.Camera.route) },
-                onViewStats = { navController.navigate(Screen.Statistics.route) },
-                onLogWearManually = { navController.navigate(Screen.ItemsList.route) }
+    NavHost(navController = navController, startDestination = Screen.ItemsList.route) {
+        composable(Screen.ItemsList.route) {
+            ItemsListScreen(
+                onAddClothes = { navController.navigate(Screen.Camera.route) },
+                onItemDetail = { itemId ->
+                    navController.navigate(Screen.ItemDetail.createRoute(itemId))
+                }
             )
         }
         composable(Screen.Camera.route) {
@@ -55,15 +54,7 @@ fun NavGraph(navController: NavHostController) {
         ) {
             MatchConfirmationScreen(
                 onDone = {
-                    navController.popBackStack(Screen.Home.route, inclusive = false)
-                }
-            )
-        }
-        composable(Screen.Statistics.route) {
-            StatisticsScreen(
-                onBack = { navController.popBackStack() },
-                onItemClick = { itemId ->
-                    navController.navigate(Screen.ItemDetail.createRoute(itemId))
+                    navController.popBackStack(Screen.ItemsList.route, inclusive = false)
                 }
             )
         }
@@ -74,14 +65,6 @@ fun NavGraph(navController: NavHostController) {
             ItemDetailScreen(
                 onBack = { navController.popBackStack() },
                 onItemDeleted = { navController.popBackStack() }
-            )
-        }
-        composable(Screen.ItemsList.route) {
-            ItemsListScreen(
-                onBack = { navController.popBackStack() },
-                onItemDetail = { itemId ->
-                    navController.navigate(Screen.ItemDetail.createRoute(itemId))
-                }
             )
         }
     }
