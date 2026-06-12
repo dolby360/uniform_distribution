@@ -98,6 +98,12 @@ class StorageClient:
         )
         return self._signing_credentials
 
+    def _blob_path(self, url: str) -> str:
+        """Extract the bucket-relative blob path from a gs:// or https:// URL."""
+        if url.startswith(f"https://storage.googleapis.com/{self.bucket_name}/"):
+            return url.split(f"/{self.bucket_name}/", 1)[1].split("?")[0]
+        return url.replace(f"gs://{self.bucket_name}/", "")
+
     def get_signed_url(self, url: str, expiration_minutes: int = 60) -> str:
         """
         Generate signed URL for image access.
@@ -109,11 +115,7 @@ class StorageClient:
         Returns:
             HTTPS signed URL for temporary access
         """
-        if url.startswith(f"https://storage.googleapis.com/{self.bucket_name}/"):
-            path = url.split(f"/{self.bucket_name}/", 1)[1].split("?")[0]
-        else:
-            path = url.replace(f"gs://{self.bucket_name}/", "")
-        blob = self.bucket.blob(path)
+        blob = self.bucket.blob(self._blob_path(url))
 
         url = blob.generate_signed_url(
             version="v4",
@@ -122,6 +124,23 @@ class StorageClient:
             credentials=self._get_signing_credentials()
         )
         return url
+
+    def get_hashes_by_path(self, prefix: str) -> dict:
+        """
+        Map every blob path under ``prefix`` to its stable content hash.
+
+        Keyed by bucket-relative path (blob.name) so callers can look up via
+        ``_blob_path()`` regardless of whether the stored URL is a gs:// path or
+        an https signed URL. Uses a single bucket listing (which already returns
+        each object's md5_hash) instead of one metadata GET per image. The
+        base64 MD5 changes only when the image content changes, so clients can
+        cache by hash and skip re-downloading unchanged images even though
+        signed URLs rotate.
+        """
+        return {
+            blob.name: blob.md5_hash
+            for blob in self.bucket.list_blobs(prefix=prefix)
+        }
 
     def delete_image(self, gs_url: str) -> bool:
         """

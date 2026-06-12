@@ -25,7 +25,11 @@ def list_items() -> dict:
     db = firestore.Client(project=os.getenv('GCP_PROJECT_ID'))
     storage = StorageClient()
 
-    # Cache signed URLs so duplicate gs:// URLs across docs only get signed once.
+    # Content hashes for all cropped items in one listing (cheap), so clients
+    # can cache images by hash. Stored image_urls may be gs:// paths or https
+    # signed URLs, so look up by normalized blob path. Signed URLs are still
+    # generated per item (local crypto) and cached so duplicates sign once.
+    hash_by_path = storage.get_hashes_by_path("cropped-items/")
     seen_urls: dict = {}
     def sign_url(url: str) -> str:
         if url not in seen_urls:
@@ -40,9 +44,11 @@ def list_items() -> dict:
     for doc in db.collection('clothing_items').stream():
         data = doc.to_dict()
         last_worn = data.get('last_worn')
+        stored_url = data['image_urls'][0]
         entry = {
             'id': doc.id,
-            'image_url': sign_url(data['image_urls'][0]),
+            'image_url': sign_url(stored_url),
+            'image_hash': hash_by_path.get(storage._blob_path(stored_url)),
             'wear_count': data.get('wear_count', 0),
             'last_worn': last_worn.isoformat() if last_worn else None,
             'days_since_worn': (now - last_worn).days if last_worn else None,

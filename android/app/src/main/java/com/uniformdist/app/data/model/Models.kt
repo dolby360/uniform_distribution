@@ -139,6 +139,7 @@ data class DeleteItemImageResponse(
 data class ItemListEntry(
     val id: String,
     val image_url: String,
+    val image_hash: String? = null,
     val wear_count: Int,
     val last_worn: String?,
     val days_since_worn: Int?
