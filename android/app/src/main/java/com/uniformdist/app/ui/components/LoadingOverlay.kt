@@ -13,17 +13,21 @@ fun LoadingOverlay(
 ) {
     Surface(
         modifier = Modifier.fillMaxSize(),
-        color = MaterialTheme.colorScheme.scrim.copy(alpha = 0.5f)
+        color = MaterialTheme.colorScheme.scrim.copy(alpha = 0.55f)
     ) {
         Box(contentAlignment = Alignment.Center) {
-            Card {
+            Surface(
+                shape = MaterialTheme.shapes.extraLarge,
+                color = MaterialTheme.colorScheme.surface,
+                tonalElevation = 2.dp
+            ) {
                 Column(
-                    modifier = Modifier.padding(32.dp),
+                    modifier = Modifier.padding(horizontal = 40.dp, vertical = 32.dp),
                     horizontalAlignment = Alignment.CenterHorizontally
                 ) {
-                    CircularProgressIndicator()
+                    CircularProgressIndicator(color = MaterialTheme.colorScheme.tertiary)
                     Spacer(modifier = Modifier.height(16.dp))
-                    Text(message)
+                    Text(message, style = MaterialTheme.typography.bodyMedium)
                 }
             }
         }

@@ -82,7 +82,7 @@ fun MarkWornDialog(
                         Text("Today")
                     }
                 }
-                OutlinedButton(
+                FilledTonalButton(
                     onClick = { onConfirm(isoForDaysAgo(1)) },
                     enabled = !isLogging,
                     modifier = Modifier.fillMaxWidth(),

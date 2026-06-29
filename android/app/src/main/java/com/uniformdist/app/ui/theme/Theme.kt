@@ -2,62 +2,72 @@ package com.uniformdist.app.ui.theme
 
 import android.os.Build
 import androidx.compose.foundation.isSystemInDarkTheme
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.unit.dp
 
 private val LightColorScheme = lightColorScheme(
-    primary = SlateBlue,
-    onPrimary = White,
-    primaryContainer = SlateBlueLight,
-    onPrimaryContainer = Color(0xFF0D3B6F),
-    secondary = CoolGray,
-    onSecondary = White,
-    secondaryContainer = CoolGrayLight,
-    onSecondaryContainer = Color(0xFF1F1F1F),
-    tertiary = MutedTeal,
-    onTertiary = White,
-    tertiaryContainer = MutedTealLight,
-    onTertiaryContainer = Color(0xFF0E3D4D),
-    background = OffWhite,
-    onBackground = CharcoalText,
-    surface = White,
-    onSurface = CharcoalText,
-    surfaceVariant = CoolGrayLight,
+    primary = Ink,
+    onPrimary = Ivory,
+    primaryContainer = Bone,
+    onPrimaryContainer = Ink,
+    secondary = Taupe,
+    onSecondary = WarmWhite,
+    secondaryContainer = Linen,
+    onSecondaryContainer = Color(0xFF3A352E),
+    tertiary = Terracotta,
+    onTertiary = WarmWhite,
+    tertiaryContainer = TerracottaPale,
+    onTertiaryContainer = ClayDeep,
+    background = Ivory,
+    onBackground = InkText,
+    surface = WarmWhite,
+    onSurface = InkText,
+    surfaceVariant = Color(0xFFEDE7DC),
     onSurfaceVariant = MutedText,
     error = ErrorRed,
-    onError = White,
+    onError = WarmWhite,
     errorContainer = ErrorRedLight,
-    onErrorContainer = Color(0xFF5C1A1A),
-    outline = Color(0xFFDADCE0),
-    outlineVariant = Color(0xFFE8EAED)
+    onErrorContainer = Color(0xFF410E0B),
+    outline = Color(0xFFD8D0C2),
+    outlineVariant = Color(0xFFE6DFD2)
 )
 
 private val DarkColorScheme = darkColorScheme(
-    primary = SlateBlue80,
-    onPrimary = Color(0xFF002D6E),
-    primaryContainer = SlateBlueContainer,
-    onPrimaryContainer = SlateBlue80,
-    secondary = LightGray,
-    onSecondary = Color(0xFF1F1F1F),
-    secondaryContainer = LightGrayContainer,
-    onSecondaryContainer = LightGray,
-    tertiary = SoftTeal,
-    onTertiary = Color(0xFF003544),
-    tertiaryContainer = SoftTealContainer,
-    onTertiaryContainer = SoftTeal,
-    background = DarkBackground,
-    onBackground = Color(0xFFE3E3E3),
-    surface = DarkSurface,
-    onSurface = Color(0xFFE3E3E3),
-    surfaceVariant = Color(0xFF2C2C2C),
+    primary = BoneBright,
+    onPrimary = Ink,
+    primaryContainer = InkContainer,
+    onPrimaryContainer = BoneBright,
+    secondary = SandMuted,
+    onSecondary = Color(0xFF2B2722),
+    secondaryContainer = SandContainer,
+    onSecondaryContainer = SandMuted,
+    tertiary = TerracottaSoft,
+    onTertiary = Color(0xFF44190A),
+    tertiaryContainer = TerracottaContainer,
+    onTertiaryContainer = TerracottaPale,
+    background = CharcoalWarm,
+    onBackground = Color(0xFFEAE5DC),
+    surface = CharcoalSurface,
+    onSurface = Color(0xFFEAE5DC),
+    surfaceVariant = Color(0xFF2B2722),
     onSurfaceVariant = DarkMutedText,
     error = ErrorRedDark,
     onError = Color(0xFF3C0A0A),
     errorContainer = ErrorRedDarkContainer,
     onErrorContainer = ErrorRedDark,
-    outline = Color(0xFF5F6368),
-    outlineVariant = Color(0xFF3C4043)
+    outline = Color(0xFF57514A),
+    outlineVariant = Color(0xFF3A3630)
+)
+
+private val AppShapes = Shapes(
+    extraSmall = RoundedCornerShape(8.dp),
+    small = RoundedCornerShape(12.dp),
+    medium = RoundedCornerShape(16.dp),
+    large = RoundedCornerShape(20.dp),
+    extraLarge = RoundedCornerShape(28.dp)
 )
 
 @Composable
@@ -78,6 +88,7 @@ fun UniformDistTheme(
     MaterialTheme(
         colorScheme = colorScheme,
         typography = Typography,
+        shapes = AppShapes,
         content = content
     )
 }
